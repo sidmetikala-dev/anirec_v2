@@ -1,8 +1,7 @@
 import requests
 
 class MALClient:
-    def __init__(self, client_id, username):
-        self.url = f"https://api.myanimelist.net/v2/users/{username}/animelist"
+    def __init__(self, client_id):
         self.headers = {
             "X-MAL-CLIENT-ID": client_id
         }
@@ -18,8 +17,9 @@ class MALClient:
             raise RuntimeError(f"Error {response.status_code}: {response.text}")
         return response.json()
 
-    def get_user_data(self):
-        page = self._get_page(self.url, params=self.params)
+    def get_user_data(self, username):
+        url = f"https://api.myanimelist.net/v2/users/{username}/animelist"
+        page = self._get_page(url, params=self.params)
         all_data = list(page.get("data", []))
         next_url = page.get("paging", {}).get("next")
         seen_urls = set()
