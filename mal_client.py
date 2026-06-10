@@ -18,9 +18,20 @@ class MALClient:
         return response.json()
 
     def get_user_data(self, username):
+        def is_completed_and_scored(anime):
+            list_status = anime.get("list_status", {})
+            return (
+                list_status.get("status") == "completed"
+                and list_status.get("score", 0) not in (0, "-")
+            )
+
         url = f"https://api.myanimelist.net/v2/users/{username}/animelist"
         page = self._get_page(url, params=self.params)
-        all_data = list(page.get("data", []))
+        all_data = [
+            anime
+            for anime in page.get("data", [])
+            if is_completed_and_scored(anime)
+        ]
         next_url = page.get("paging", {}).get("next")
         seen_urls = set()
 
@@ -29,7 +40,11 @@ class MALClient:
                 raise RuntimeError("Repeated paging URL detected while fetching user data.")
             seen_urls.add(next_url)
             page = self._get_page(next_url)
-            all_data.extend(page.get("data", []))
+            all_data.extend(
+                anime
+                for anime in page.get("data", [])
+                if is_completed_and_scored(anime)
+            )
             next_url = page.get("paging", {}).get("next")
 
         page["data"] = all_data
