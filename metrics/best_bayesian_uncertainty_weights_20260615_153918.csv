@@ -1,0 +1,6 @@
+k,best_uncertainty_weight,precision_at_k,baseline_precision_at_k,improvement,runs,user,anime_rated
+5,4.5,0.405,0.095,4.26,800,chekkit,251
+10,4.5,0.315,0.061,5.16,800,chekkit,251
+
+
+
