@@ -246,7 +246,7 @@ class HitRateEvaluator:
 
         return results, summary, best_weights, baseline_results, baseline_summary
 
-    def compare_bayesian_ridge(
+    def compare_models(
         self,
         uncertainty_weight=4.5,
         n_runs=50,
