@@ -1,21 +1,71 @@
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import BayesianRidge
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import StandardScaler
 
 
 class SimilarityRecommender:
     def __init__(self):
-        self.scaler = StandardScaler().set_output(transform="pandas")
+        self.raw_numeric_columns = [
+            "mean",
+            "popularity",
+            "num_scoring_users",
+            "num_episodes",
+        ]
+        self.preprocessor = None
+        self.vector_columns = None
         self.anime_df_scaled = None
         self.anime_vectors = None
 
     def create_anime_vectors(self, anime_df):
-        self.anime_df_scaled = self.scaler.fit_transform(anime_df)
+        numeric_cols = [
+            column
+            for column in self.raw_numeric_columns
+            if column in anime_df.columns
+        ]
+        svd_cols = [
+            column
+            for column in anime_df.columns
+            if str(column).startswith("synopsis_svd_")
+        ]
+        passthrough_cols = [
+            column
+            for column in anime_df.columns
+            if column not in numeric_cols + svd_cols
+        ]
+
+        transformers = []
+        if numeric_cols:
+            transformers.append(("numeric", StandardScaler(), numeric_cols))
+        if passthrough_cols:
+            transformers.append(("passthrough", "passthrough", passthrough_cols))
+        if svd_cols:
+            transformers.append(("svd", "passthrough", svd_cols))
+
+        if not transformers:
+            raise ValueError("anime_df must contain at least one feature column.")
+
+        preprocessor = ColumnTransformer(
+            transformers=transformers,
+            remainder="drop",
+            sparse_threshold=0,
+        )
+
+        self.vector_columns = numeric_cols + passthrough_cols + svd_cols
+        self.preprocessor = preprocessor
+        scaled_array = preprocessor.fit_transform(anime_df)
+        self.anime_df_scaled = pd.DataFrame(
+            scaled_array,
+            index=anime_df.index,
+            columns=self.vector_columns,
+        )
         self.anime_vectors = dict(
             zip(self.anime_df_scaled.index, self.anime_df_scaled.to_numpy().tolist())
         )
         return self.anime_vectors
+
 
     def create_user_vec(self, scores, anime_vectors=None, baseline_score=6):
         anime_vectors = anime_vectors or self.anime_vectors
@@ -66,13 +116,32 @@ class SimilarityRecommender:
 
 
 class BayesianRidgeRecommender:
-    def __init__(self, uncertainty_weight=4.5, score_min=1, score_max=10):
+    def __init__(self, uncertainty_weight=7.5, score_min=1, score_max=10):
         self.uncertainty_weight = uncertainty_weight
         self.score_min = score_min
         self.score_max = score_max
         self.model = BayesianRidge()
         self.anime_df_scaled = None
         self.rated_ids = set()
+
+    @staticmethod
+    def _scale_uncertainty(uncertainty, lower_quantile=0.05, upper_quantile=0.95):
+        uncertainty = np.asarray(uncertainty, dtype=float)
+        if uncertainty.size == 0:
+            return uncertainty
+
+        lower, upper = np.quantile(
+            uncertainty,
+            [lower_quantile, upper_quantile],
+        )
+        clipped = np.clip(uncertainty, lower, upper)
+
+        if np.isclose(clipped.max(), clipped.min()):
+            return np.zeros_like(clipped)
+
+        return MinMaxScaler().fit_transform(
+            clipped.reshape(-1, 1)
+        ).ravel()
 
     def fit(self, anime_df_scaled, scores):
         rated_items = [
@@ -128,8 +197,11 @@ class BayesianRidgeRecommender:
         recommendations = pd.DataFrame({
             "anime_id": candidate_ids,
             "predicted_score": predicted_score,
-            "uncertainty": uncertainty,
+            "uncertainty_raw": uncertainty,
         })
+        recommendations["uncertainty"] = self._scale_uncertainty(
+            recommendations["uncertainty_raw"]
+        )
         recommendations["ranking_score"] = (
             recommendations["predicted_score"]
             - uncertainty_weight * recommendations["uncertainty"]

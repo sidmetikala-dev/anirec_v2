@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import BayesianRidge, ElasticNetCV, LassoCV, RidgeCV
+from sklearn.preprocessing import MinMaxScaler
 
 
 class HitRateEvaluator:
@@ -9,6 +10,10 @@ class HitRateEvaluator:
         anime_df_scaled,
         scores,
         anime_df=None,
+        anime_data_client=None,
+        anime_data=None,
+        builder=None,
+        recommender=None,
         like_threshold=None,
         heldout_fraction=0.25,
     ):
@@ -16,6 +21,28 @@ class HitRateEvaluator:
         self.anime_df = anime_df
         self.scores = scores
         self.heldout_fraction = heldout_fraction
+
+        if anime_data_client is not None:
+            if anime_data is None or builder is None or recommender is None:
+                raise ValueError(
+                    "anime_data, builder, and recommender are required when "
+                    "anime_data_client is provided."
+                )
+
+            (
+                _,
+                self.anime_df,
+                _,
+                self.anime_df_scaled,
+                _,
+            ) = anime_data_client.get_rated_items(
+                user_scores=self.scores,
+                anime_data=anime_data,
+                builder=builder,
+                recommender=recommender,
+                anime_df=self.anime_df,
+                anime_vectors=getattr(recommender, "anime_vectors", None),
+            )
 
         self.rated_eval = self._build_rated_eval()
         if self.rated_eval.empty:
@@ -75,6 +102,39 @@ class HitRateEvaluator:
         return rows
 
     @staticmethod
+    def _sort_with_anime_tiebreakers(recommendations, score_column):
+        sort_columns = [score_column]
+        ascending = [False]
+
+        if "num_scoring_users" in recommendations.columns:
+            sort_columns.append("num_scoring_users")
+            ascending.append(False)
+
+        sort_columns.append("anime_id")
+        ascending.append(True)
+
+        return recommendations.sort_values(sort_columns, ascending=ascending)
+
+    @staticmethod
+    def _scale_uncertainty(uncertainty, lower_quantile=0.05, upper_quantile=0.95):
+        uncertainty = np.asarray(uncertainty, dtype=float)
+        if uncertainty.size == 0:
+            return uncertainty
+
+        lower, upper = np.quantile(
+            uncertainty,
+            [lower_quantile, upper_quantile],
+        )
+        clipped = np.clip(uncertainty, lower, upper)
+
+        if np.isclose(clipped.max(), clipped.min()):
+            return np.zeros_like(clipped)
+
+        return MinMaxScaler().fit_transform(
+            clipped.reshape(-1, 1)
+        ).ravel()
+
+    @staticmethod
     def summarize(results, group_cols):
         return (
             results
@@ -95,7 +155,7 @@ class HitRateEvaluator:
 
     def evaluate_bayesian_once(
         self,
-        uncertainty_weight=4.5,
+        uncertainty_weight=7.5,
         top_ks=(5, 10, 20, 50, 100),
         random_state=None,
     ):
@@ -118,8 +178,11 @@ class HitRateEvaluator:
         recommendations = pd.DataFrame({
             "anime_id": candidate_ids,
             "predicted_score": predicted_score,
-            "uncertainty": uncertainty,
+            "uncertainty_raw": uncertainty,
         })
+        recommendations["uncertainty"] = self._scale_uncertainty(
+            recommendations["uncertainty_raw"]
+        )
         recommendations["ranking_score"] = (
             recommendations["predicted_score"]
             - uncertainty_weight * recommendations["uncertainty"]
@@ -171,8 +234,11 @@ class HitRateEvaluator:
                 .isin(heldout_ids)
                 .to_numpy(),
                 "predicted_score": predicted_score,
-                "uncertainty": uncertainty,
+                "uncertainty_raw": uncertainty,
             })
+            base_recommendations["uncertainty"] = self._scale_uncertainty(
+                base_recommendations["uncertainty_raw"]
+            )
 
             if self.anime_df is not None and "mean" in self.anime_df.columns:
                 baseline_recommendations = base_recommendations[
@@ -182,9 +248,14 @@ class HitRateEvaluator:
                     baseline_recommendations["anime_id"],
                     "mean",
                 ].to_numpy()
-                baseline_recommendations = baseline_recommendations.sort_values(
+                if "num_scoring_users" in self.anime_df.columns:
+                    baseline_recommendations["num_scoring_users"] = self.anime_df.loc[
+                        baseline_recommendations["anime_id"],
+                        "num_scoring_users",
+                    ].to_numpy()
+                baseline_recommendations = self._sort_with_anime_tiebreakers(
+                    baseline_recommendations,
                     "baseline_score",
-                    ascending=False,
                 )
 
                 for row in self._score_top_k(
@@ -224,7 +295,14 @@ class HitRateEvaluator:
         )
 
         baseline_results = pd.DataFrame(baseline_rows)
-        baseline_summary = None
+        baseline_summary = pd.DataFrame(columns=[
+            "k",
+            "baseline_avg_precision_at_k",
+            "baseline_std_precision_at_k",
+            "baseline_avg_hit_rate",
+            "baseline_std_hit_rate",
+            "baseline_avg_hits",
+        ])
         if not baseline_results.empty:
             baseline_summary = (
                 baseline_results
@@ -248,7 +326,7 @@ class HitRateEvaluator:
 
     def compare_models(
         self,
-        uncertainty_weight=4.5,
+        uncertainty_weight=7.5,
         n_runs=50,
         top_ks=(5, 10),
         ridge_alphas=None,
@@ -299,7 +377,10 @@ class HitRateEvaluator:
                 X_candidates,
                 return_std=True,
             )
-            bayes_score = np.clip(bayes_pred, 1, 10) - uncertainty_weight * bayes_std
+            bayes_score = (
+                np.clip(bayes_pred, 1, 10)
+                - uncertainty_weight * self._scale_uncertainty(bayes_std)
+            )
 
             ridge_model = RidgeCV(alphas=ridge_alphas)
             ridge_model.fit(X_train, y_train)
@@ -351,13 +432,24 @@ class HitRateEvaluator:
                     candidate_ids,
                     "mean",
                 ].to_numpy()
+                if "num_scoring_users" in self.anime_df.columns:
+                    run_recommendations["num_scoring_users"] = self.anime_df.loc[
+                        candidate_ids,
+                        "num_scoring_users",
+                    ].to_numpy()
                 model_names.append("global_mean")
 
             for model_name in model_names:
-                recommendations = run_recommendations.sort_values(
-                    model_name,
-                    ascending=False,
-                )
+                if model_name == "global_mean":
+                    recommendations = self._sort_with_anime_tiebreakers(
+                        run_recommendations,
+                        model_name,
+                    )
+                else:
+                    recommendations = run_recommendations.sort_values(
+                        model_name,
+                        ascending=False,
+                    )
                 for row in self._score_top_k(recommendations, top_ks, heldout_ids):
                     row["run"] = run + 1
                     row["model"] = model_name

@@ -1,6 +1,6 @@
 feature_set,precision_at_5,precision_at_10,baseline_precision_at_5,baseline_precision_at_10,improvement_at_5,improvement_at_10,notes
-all_features,0.405,0.315,0.095,0.061,4.26,5.16,"Numeric + genre + synopsis SVD features"
-only_numeric,0.172,0.146,0.100,0.054,1.72,2.70,"Numeric metadata only"
+all_features,0.528,0.314,0.116,0.076,4.55,4.13,"Numeric + genre + synopsis SVD features"
+only_numeric,0.196,0.156,0.116,0.076,1.69,2.05,"Numeric metadata only"
 only_genres,0.072,0.130,0.132,0.072,0.55,1.81,"Genre one-hot features only"
 genres_svd,0.128,0.098,0.092,0.054,1.39,1.81,"Genre + synopsis SVD features"
 numeric_genres,0.264,0.258,0.076,0.052,3.47,4.96,"Numeric metadata + genre features"

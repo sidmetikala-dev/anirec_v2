@@ -405706,5 +405706,806 @@
       },
       "num_list_users": 2207
     }
+  },
+  "16512": {
+    "id": 16512,
+    "title": "Devil Survivor 2 The Animation",
+    "main_picture": {
+      "medium": "https://cdn.myanimelist.net/images/anime/11/47191.webp",
+      "large": "https://cdn.myanimelist.net/images/anime/11/47191l.webp"
+    },
+    "synopsis": "The countdown to extinction begins on Sunday with the arrival of the Septentriones, otherworldly invaders set on the eradication of mankind. Caught in the crossfire, Hibiki Kuze and his friends join in the war for humanity's survival by signing contracts with demons to become \"Devil Summoners.\" Soon, their abilities attract the attention of JP's, an underground agency led by Yamato Houtsuin. Once recruited into JP's, Hibiki and his friends fight and bond alongside other ordinary citizens who are Devil Summoners. \n\nHowever, with each new day, another Septentrione appears to wreak havoc upon Japan. Even if many lives are lost in the process, before that night ends, the young summoners must defeat the invaders at all costs.\n\n[Written by MAL Rewrite]",
+    "mean": 6.83,
+    "rank": 5660,
+    "popularity": 1602,
+    "num_list_users": 173381,
+    "num_scoring_users": 81380,
+    "media_type": "tv",
+    "status": "finished_airing",
+    "genres": [
+      {
+        "id": 1,
+        "name": "Action"
+      },
+      {
+        "id": 6,
+        "name": "Mythology"
+      },
+      {
+        "id": 37,
+        "name": "Supernatural"
+      },
+      {
+        "id": 76,
+        "name": "Survival"
+      },
+      {
+        "id": 41,
+        "name": "Suspense"
+      }
+    ],
+    "num_episodes": 13,
+    "rating": "r",
+    "recommendations": [
+      {
+        "node": {
+          "id": 10588,
+          "title": "Persona 4 the Animation",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/4/29107.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/4/29107l.webp"
+          }
+        },
+        "num_recommendations": 15
+      },
+      {
+        "node": {
+          "id": 10620,
+          "title": "Mirai Nikki (TV)",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/13/33465.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/13/33465l.jpg"
+          }
+        },
+        "num_recommendations": 7
+      },
+      {
+        "node": {
+          "id": 30,
+          "title": "Shinseiki Evangelion",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1314/108941.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/1314/108941l.jpg"
+          }
+        },
+        "num_recommendations": 7
+      },
+      {
+        "node": {
+          "id": 20533,
+          "title": "Z/X: Ignition",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/6/56797.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/6/56797l.webp"
+          }
+        },
+        "num_recommendations": 6
+      },
+      {
+        "node": {
+          "id": 6746,
+          "title": "Durarara!!",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/10/71772.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/10/71772l.jpg"
+          }
+        },
+        "num_recommendations": 6
+      },
+      {
+        "node": {
+          "id": 16592,
+          "title": "Danganronpa: Kibou no Gakuen to Zetsubou no Koukousei The Animation",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/4/51463.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/4/51463l.webp"
+          }
+        },
+        "num_recommendations": 5
+      },
+      {
+        "node": {
+          "id": 874,
+          "title": "Digimon Tamers",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/7/73696.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/7/73696l.jpg"
+          }
+        },
+        "num_recommendations": 4
+      },
+      {
+        "node": {
+          "id": 384,
+          "title": "Gantz",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/13/5998.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/13/5998l.webp"
+          }
+        },
+        "num_recommendations": 4
+      },
+      {
+        "node": {
+          "id": 10793,
+          "title": "Guilty Crown",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1566/133912.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/1566/133912l.jpg"
+          }
+        },
+        "num_recommendations": 4
+      },
+      {
+        "node": {
+          "id": 356,
+          "title": "Fate/stay night",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/4/30327.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/4/30327l.webp"
+          }
+        },
+        "num_recommendations": 3
+      }
+    ],
+    "studios": [
+      {
+        "id": 397,
+        "name": "Bridge"
+      }
+    ],
+    "statistics": {
+      "status": {
+        "watching": "10897",
+        "completed": "100755",
+        "on_hold": "7472",
+        "dropped": "14122",
+        "plan_to_watch": "40043"
+      },
+      "num_list_users": 173289
+    }
+  },
+  "873": {
+    "id": 873,
+    "title": ".hack//Roots",
+    "main_picture": {
+      "medium": "https://cdn.myanimelist.net/images/anime/3/13050.jpg",
+      "large": "https://cdn.myanimelist.net/images/anime/3/13050l.jpg"
+    },
+    "synopsis": "After the termination of the incredibly popular virtual reality MMORPG \"The World,\" a new version of the game—The World R:2—is brought online. On his first day in the game, newcomer Haseo thinks he has made some friends to quest with. However, as if mocking his sentiments, they kill his character just for fun. Luckily, he is saved by a mysterious, one-armed player named Ovan who offers to show him around The World. \n\nAlongside Ovan and his cleric friend Shino, Haseo enjoys a wonderful first year in the game. But this peaceful life is shattered when Shino's character is killed by a familiar figure notoriously known as Tri-Edge, whose victims have all fallen into comas in the real world. In a fit of rage, Haseo vows to find the elusive Tri-Edge and kill him.\n\nTaking place during Haseo's first year in The World, .hack//Roots explores the friendships Haseo built in the game before Tri-Edge ripped them away.\n\n[Written by MAL Rewrite]",
+    "mean": 6.86,
+    "rank": 5480,
+    "popularity": 2826,
+    "num_list_users": 77786,
+    "num_scoring_users": 36429,
+    "media_type": "tv",
+    "status": "finished_airing",
+    "genres": [
+      {
+        "id": 2,
+        "name": "Adventure"
+      },
+      {
+        "id": 8,
+        "name": "Drama"
+      },
+      {
+        "id": 10,
+        "name": "Fantasy"
+      },
+      {
+        "id": 79,
+        "name": "Video Game"
+      }
+    ],
+    "num_episodes": 26,
+    "rating": "pg_13",
+    "recommendations": [
+      {
+        "node": {
+          "id": 11757,
+          "title": "Sword Art Online",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/11/39717.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/11/39717l.webp"
+          }
+        },
+        "num_recommendations": 7
+      },
+      {
+        "node": {
+          "id": 1202,
+          "title": "Ar Tonelico: Sekai no Owari de Utai Tsuzukeru Shoujo",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/4/19950.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/4/19950l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 2031,
+          "title": "Shining Tears X Wind",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/10/2298.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/10/2298l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 3366,
+          "title": "Persona: Trinity Soul",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1231/97049.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/1231/97049l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 20,
+          "title": "Naruto",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1141/142503.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/1141/142503l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 1482,
+          "title": "D.Gray-man",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/13/75194.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/13/75194l.webp"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 17265,
+          "title": "Log Horizon",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/5/84004.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/5/84004l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 6702,
+          "title": "Fairy Tail",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/5/18179.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/5/18179l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 52347,
+          "title": "Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1500/139931.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/1500/139931l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      }
+    ],
+    "studios": [
+      {
+        "id": 5,
+        "name": "Bee Train"
+      }
+    ],
+    "statistics": {
+      "status": {
+        "watching": "2884",
+        "completed": "48060",
+        "on_hold": "3235",
+        "dropped": "4105",
+        "plan_to_watch": "19479"
+      },
+      "num_list_users": 77763
+    }
+  },
+  "32032": {
+    "id": 32032,
+    "title": "Seikaisuru Kado",
+    "main_picture": {
+      "medium": "https://cdn.myanimelist.net/images/anime/3/85255.webp",
+      "large": "https://cdn.myanimelist.net/images/anime/3/85255l.webp"
+    },
+    "synopsis": "Cool-headed and rational, Koujirou Shindou is a government official and master negotiator with a well-earned reputation. While departing on a business trip, a giant cube materializes and his plane is taken undamaged into the mysterious, indestructible structure.\n\nAs Japanese authorities attempt to identify the cube's properties and origins, Shindou encounters an otherworldly entity known as Yaha-kui zaShunina, who materializes in the form of a human man. He assures Shindou that the passengers are not in any danger and requests help in negotiations with the human world.\n\nHailing from a higher dimensional universe known as Novo, Yaha-kui zaShunina is able to transfer information between Novo and Shindou's universe through a cube called Kado. Despite having these unfathomable abilities, he does not appear hostile. Instead, he announces that he has come to this world with only one intention: to \"advance\" humanity—starting with Japan.\n\n[Written by MAL Rewrite]",
+    "mean": 6.71,
+    "rank": 6449,
+    "popularity": 2230,
+    "num_list_users": 111931,
+    "num_scoring_users": 42474,
+    "media_type": "tv",
+    "status": "finished_airing",
+    "genres": [
+      {
+        "id": 50,
+        "name": "Adult Cast"
+      },
+      {
+        "id": 24,
+        "name": "Sci-Fi"
+      }
+    ],
+    "num_episodes": 12,
+    "rating": "pg_13",
+    "recommendations": [
+      {
+        "node": {
+          "id": 28907,
+          "title": "Gate: Jieitai Kanochi nite, Kaku Tatakaeri",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/8/76222.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/8/76222l.jpg"
+          }
+        },
+        "num_recommendations": 3
+      },
+      {
+        "node": {
+          "id": 37525,
+          "title": "Babylon",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1942/102707.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/1942/102707l.jpg"
+          }
+        },
+        "num_recommendations": 2
+      },
+      {
+        "node": {
+          "id": 33337,
+          "title": "ACCA: 13-ku Kansatsu-ka",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/3/83776.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/3/83776l.jpg"
+          }
+        },
+        "num_recommendations": 2
+      },
+      {
+        "node": {
+          "id": 30383,
+          "title": "Classroom☆Crisis",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/12/74397.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/12/74397l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 13125,
+          "title": "Shinsekai yori",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1549/136389.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/1549/136389l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 9253,
+          "title": "Steins;Gate",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1935/127974.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/1935/127974l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 13391,
+          "title": "Rakuen Tsuihou",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/3/87919.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/3/87919l.webp"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 14467,
+          "title": "K",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/3/47607.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/3/47607l.webp"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 21039,
+          "title": "Gatchaman Crowds Insight",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/11/74978.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/11/74978l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 40046,
+          "title": "Id:Invaded",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1889/105337.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/1889/105337l.webp"
+          }
+        },
+        "num_recommendations": 1
+      }
+    ],
+    "studios": [
+      {
+        "id": 18,
+        "name": "Toei Animation"
+      }
+    ],
+    "statistics": {
+      "status": {
+        "watching": "9373",
+        "completed": "50182",
+        "on_hold": "4529",
+        "dropped": "9280",
+        "plan_to_watch": "38515"
+      },
+      "num_list_users": 111879
+    }
+  },
+  "43760": {
+    "id": 43760,
+    "title": "Hikari no Ou",
+    "main_picture": {
+      "medium": "https://cdn.myanimelist.net/images/anime/1787/131675.jpg",
+      "large": "https://cdn.myanimelist.net/images/anime/1787/131675l.jpg"
+    },
+    "synopsis": "Human civilization no longer revolves around fire, but is instead now driven by fear of it. Repeated wars have changed human biology, and people now spontaneously combust when they get close to natural flame. However, a new source of energy prevents society from complete collapse: a stone-shaped material used to produce light and steam lies within the bodies of monsters that infest numerous forests. Those tasked with collecting this precious resource are called fire hunters.\n\nTouko, a young village girl, is saved from a forest monster by a fire hunter who perishes during his heroic action. After the hunter's dog, Kanata, heals from his own injury, the girl's family sends her to the capital in order to return Kanata and the hunter's fire sickle to his relatives.\n\nElsewhere, the fire hunter's son, Koushi, and his sister are adopted by a wealthy family. Koushi learns some troubling facts related to the country's ruling royal family. He conducts secret research on a special fire stone found by his late father, kickstarting a race against time between the country's leaders and those trying to save mankind from its ultimate demise.\n\n[Written by MAL Rewrite]",
+    "mean": 6.33,
+    "rank": 8881,
+    "popularity": 3619,
+    "num_list_users": 49964,
+    "num_scoring_users": 14062,
+    "media_type": "tv",
+    "status": "finished_airing",
+    "genres": [
+      {
+        "id": 2,
+        "name": "Adventure"
+      },
+      {
+        "id": 8,
+        "name": "Drama"
+      },
+      {
+        "id": 10,
+        "name": "Fantasy"
+      }
+    ],
+    "num_episodes": 10,
+    "rating": "pg_13",
+    "recommendations": [
+      {
+        "node": {
+          "id": 13125,
+          "title": "Shinsekai yori",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1549/136389.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/1549/136389l.jpg"
+          }
+        },
+        "num_recommendations": 2
+      },
+      {
+        "node": {
+          "id": 1827,
+          "title": "Seirei no Moribito",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/4/50337.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/4/50337l.jpg"
+          }
+        },
+        "num_recommendations": 2
+      },
+      {
+        "node": {
+          "id": 28623,
+          "title": "Koutetsujou no Kabaneri",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/12/79164.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/12/79164l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 38671,
+          "title": "Enen no Shouboutai",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1664/103275.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/1664/103275l.webp"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 164,
+          "title": "Mononoke Hime",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1355/147277.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/1355/147277l.webp"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 34599,
+          "title": "Made in Abyss",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/6/86733.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/6/86733l.webp"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 48405,
+          "title": "Totsukuni no Shoujo (2022)",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1957/113267.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/1957/113267l.webp"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 385,
+          "title": "Gilgamesh",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/13/6640.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/13/6640l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 34712,
+          "title": "Kujira no Kora wa Sajou ni Utau",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/4/86661.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/4/86661l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 41025,
+          "title": "Fumetsu no Anata e",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/1880/118484.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/1880/118484l.webp"
+          }
+        },
+        "num_recommendations": 1
+      }
+    ],
+    "studios": [
+      {
+        "id": 1278,
+        "name": "Signal.MD"
+      }
+    ],
+    "statistics": {
+      "status": {
+        "watching": "4728",
+        "completed": "14707",
+        "on_hold": "1946",
+        "dropped": "5412",
+        "plan_to_watch": "23114"
+      },
+      "num_list_users": 49907
+    }
+  },
+  "860": {
+    "id": 860,
+    "title": "Makai Senki Disgaea",
+    "main_picture": {
+      "medium": "https://cdn.myanimelist.net/images/anime/11/20439.webp",
+      "large": "https://cdn.myanimelist.net/images/anime/11/20439l.webp"
+    },
+    "synopsis": "An angel arrives in Hell! A demon lord is awakened! There are penguins everywhere! What’s going on here?\n\nAngel assassin-in-training Flonne is on a quest to destroy the demon Overlord. Instead of accomplishing her mission, the ditzy Flonne manages to wake Laharl, the demon lord and heir to the throne, from his two year slumber. Now the pair, along with Laharl’s not-so-faithful vassal Etna and her army of explosive souls in penguin costumes, must restore order to the crumbling Netherworld.\n\nBased on the events of the game Disgaea: Hour of Darkness, Makai Senki Disgaea follows Laharl’s journey to squash the demon rebellion, reclaim the throne, and destroy anyone who stands in his path. Or, you know, let them join him on his travels if they really want. Just remember: Laharl is a demon lord. There’s no way he’ll ever show kindness, compassion, or love... right?",
+    "mean": 6.72,
+    "rank": 6363,
+    "popularity": 3782,
+    "num_list_users": 46707,
+    "num_scoring_users": 21288,
+    "media_type": "tv",
+    "status": "finished_airing",
+    "genres": [
+      {
+        "id": 1,
+        "name": "Action"
+      },
+      {
+        "id": 4,
+        "name": "Comedy"
+      },
+      {
+        "id": 10,
+        "name": "Fantasy"
+      },
+      {
+        "id": 6,
+        "name": "Mythology"
+      }
+    ],
+    "num_episodes": 12,
+    "rating": "pg_13",
+    "recommendations": [
+      {
+        "node": {
+          "id": 11633,
+          "title": "Blood Lad",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/11/47677.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/11/47677l.webp"
+          }
+        },
+        "num_recommendations": 3
+      },
+      {
+        "node": {
+          "id": 335,
+          "title": "Matantei Loki Ragnarok",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/13/75300.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/13/75300l.jpg"
+          }
+        },
+        "num_recommendations": 2
+      },
+      {
+        "node": {
+          "id": 9736,
+          "title": "Astarotte no Omocha!",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/3/75562.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/3/75562l.jpg"
+          }
+        },
+        "num_recommendations": 2
+      },
+      {
+        "node": {
+          "id": 10721,
+          "title": "Mawaru Penguindrum",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/5/30238.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/5/30238l.webp"
+          }
+        },
+        "num_recommendations": 2
+      },
+      {
+        "node": {
+          "id": 2026,
+          "title": "Hayate no Gotoku!",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/7/73932.webp",
+            "large": "https://cdn.myanimelist.net/images/anime/7/73932l.webp"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 1685,
+          "title": "Duel Masters",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/3/21506.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/3/21506l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 60,
+          "title": "Chrno Crusade",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/13/14141.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/13/14141l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 298,
+          "title": ".hack//Tasogare no Udewa Densetsu",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/4/78321.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/4/78321l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 4962,
+          "title": "Rokumon Tengai Mon Colle Knights",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/3/17055.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/3/17055l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      },
+      {
+        "node": {
+          "id": 253,
+          "title": "Jungle wa Itsumo Hare nochi Guu",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/10/24555.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/10/24555l.jpg"
+          }
+        },
+        "num_recommendations": 1
+      }
+    ],
+    "studios": [
+      {
+        "id": 28,
+        "name": "OLM"
+      }
+    ],
+    "statistics": {
+      "status": {
+        "watching": "1945",
+        "completed": "26908",
+        "on_hold": "1955",
+        "dropped": "2860",
+        "plan_to_watch": "13017"
+      },
+      "num_list_users": 46685
+    }
   }
 }

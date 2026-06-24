@@ -134,6 +134,56 @@ class AnimeDataClient:
             self._save_cache(anime_cache)
 
         return anime_data
+
+    def get_rated_items(
+        self,
+        user_scores,
+        anime_data,
+        builder,
+        recommender,
+        anime_df=None,
+        anime_vectors=None,
+    ):
+        anime_vectors = anime_vectors or getattr(recommender, "anime_vectors", None)
+        if anime_vectors is None:
+            raise ValueError("Create anime vectors before getting rated items.")
+
+        valid_user_scores = {
+            anime_id: score
+            for anime_id, score in user_scores.items()
+            if score not in (None, 0, "-")
+        }
+
+        missing_rated_ids = [
+            anime_id
+            for anime_id in valid_user_scores
+            if anime_id not in anime_vectors
+        ]
+
+        if missing_rated_ids:
+            fetched_anime_data = self.get_anime_data(missing_rated_ids)
+            anime_data.update({
+                str(anime_id): anime
+                for anime_id, anime in fetched_anime_data.items()
+            })
+
+            builder.anime_data = anime_data
+            anime_df = builder.build_features()
+            anime_vectors = recommender.create_anime_vectors(anime_df)
+
+        rated_items = [
+            (anime_id, anime_vectors[anime_id], score)
+            for anime_id, score in valid_user_scores.items()
+            if anime_id in anime_vectors
+        ]
+
+        return (
+            rated_items,
+            anime_df,
+            anime_vectors,
+            getattr(recommender, "anime_df_scaled", None),
+            builder,
+        )
     
     def print_cache_summary(self):
         anime_cache = self._load_cache()
