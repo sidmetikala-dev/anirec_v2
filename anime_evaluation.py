@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import BayesianRidge, ElasticNetCV, LassoCV, RidgeCV
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.preprocessing import MinMaxScaler
 
 
@@ -330,8 +332,15 @@ class HitRateEvaluator:
         n_runs=50,
         top_ks=(5, 10),
         ridge_alphas=None,
+        include_ridge_cv=True,
         include_lasso=False,
         include_elastic_net=False,
+        include_knn=True,
+        include_gradient_boosting=True,
+        knn_neighbors=20,
+        knn_weights="distance",
+        knn_metric="cosine",
+        gradient_boosting_params=None,
         lasso_alphas=None,
         elastic_alphas=None,
         elastic_l1_ratios=None,
@@ -358,6 +367,16 @@ class HitRateEvaluator:
             if elastic_l1_ratios is None
             else elastic_l1_ratios
         )
+        gradient_boosting_params = (
+            {
+                "n_estimators": 100,
+                "learning_rate": 0.05,
+                "max_depth": 2,
+                "random_state": 42,
+            }
+            if gradient_boosting_params is None
+            else gradient_boosting_params
+        )
         rng = np.random.default_rng(random_state)
         rows = []
 
@@ -382,9 +401,36 @@ class HitRateEvaluator:
                 - uncertainty_weight * self._scale_uncertainty(bayes_std)
             )
 
-            ridge_model = RidgeCV(alphas=ridge_alphas)
-            ridge_model.fit(X_train, y_train)
-            ridge_score = np.clip(ridge_model.predict(X_candidates), 1, 10)
+            ridge_model = None
+            ridge_score = None
+            if include_ridge_cv:
+                ridge_model = RidgeCV(alphas=ridge_alphas)
+                ridge_model.fit(X_train, y_train)
+                ridge_score = np.clip(ridge_model.predict(X_candidates), 1, 10)
+
+            knn_model = None
+            knn_score = None
+            if include_knn:
+                knn_model = KNeighborsRegressor(
+                    n_neighbors=min(knn_neighbors, len(train_ids)),
+                    weights=knn_weights,
+                    metric=knn_metric,
+                )
+                knn_model.fit(X_train, y_train)
+                knn_score = np.clip(knn_model.predict(X_candidates), 1, 10)
+
+            gradient_model = None
+            gradient_score = None
+            if include_gradient_boosting:
+                gradient_model = GradientBoostingRegressor(
+                    **gradient_boosting_params
+                )
+                gradient_model.fit(X_train, y_train)
+                gradient_score = np.clip(
+                    gradient_model.predict(X_candidates),
+                    1,
+                    10,
+                )
 
             lasso_model = None
             lasso_score = None
@@ -417,10 +463,18 @@ class HitRateEvaluator:
                 .isin(heldout_ids)
                 .to_numpy(),
                 "bayesian_ridge": bayes_score,
-                "ridge_cv": ridge_score,
             })
 
-            model_names = ["bayesian_ridge", "ridge_cv"]
+            model_names = ["bayesian_ridge"]
+            if include_ridge_cv:
+                run_recommendations["ridge_cv"] = ridge_score
+                model_names.append("ridge_cv")
+            if include_knn:
+                run_recommendations["knn"] = knn_score
+                model_names.append("knn")
+            if include_gradient_boosting:
+                run_recommendations["gradient_boosting"] = gradient_score
+                model_names.append("gradient_boosting")
             if include_lasso:
                 run_recommendations["lasso_cv"] = lasso_score
                 model_names.append("lasso_cv")
@@ -471,6 +525,11 @@ class HitRateEvaluator:
                     row["elastic_l1_ratio"] = (
                         elastic_model.l1_ratio_
                         if model_name == "elastic_net_cv"
+                        else np.nan
+                    )
+                    row["knn_neighbors"] = (
+                        knn_model.n_neighbors
+                        if model_name == "knn"
                         else np.nan
                     )
                     rows.append(row)

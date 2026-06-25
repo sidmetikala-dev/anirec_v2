@@ -1,11 +1,21 @@
-model,k,avg_precision_at_k,std_precision_at_k,avg_hit_rate,std_hit_rate,avg_hits
-bayesian_ridge,5,0.420,0.194831,0.067742,0.031424,2.10
-ridge_cv,5,0.332,0.169561,0.053548,0.027349,1.66
-elastic_net_cv,5,0.280,0.151186,0.045161,0.024385,1.40
-lasso_cv,5,0.240,0.156492,0.038710,0.025241,1.20
-global_mean,5,0.096,0.129300,0.015484,0.020855,0.48
-bayesian_ridge,10,0.358,0.126314,0.115484,0.040746,3.58
-ridge_cv,10,0.288,0.111831,0.092903,0.036074,2.88
-elastic_net_cv,10,0.212,0.100285,0.068387,0.032350,2.12
-lasso_cv,10,0.204,0.100934,0.065806,0.032559,2.04
-global_mean,10,0.064,0.063116,0.020645,0.020360,0.64
+comparison,model,k,n_runs,uncertainty_weight,knn_metric,avg_precision_at_k,std_precision_at_k,avg_hit_rate,std_hit_rate,avg_hits,mean_difference_vs_knn,paired_t_p_value,wilcoxon_p_value,notes
+broad_model_comparison,bayesian_ridge,5,50,7.5,cosine,0.528,0.179614,0.085161,0.028970,2.64,,,,"Broad 50-run comparison"
+broad_model_comparison,knn,5,50,7.5,cosine,0.288,0.181423,0.046452,0.029262,1.44,,,,"Broad 50-run comparison"
+broad_model_comparison,elastic_net_cv,5,50,7.5,cosine,0.172,0.121286,0.027742,0.019562,0.86,,,,"Broad 50-run comparison"
+broad_model_comparison,lasso_cv,5,50,7.5,cosine,0.172,0.114357,0.027742,0.018445,0.86,,,,"Broad 50-run comparison"
+broad_model_comparison,ridge_cv,5,50,7.5,cosine,0.172,0.140029,0.027742,0.022585,0.86,,,,"Broad 50-run comparison"
+broad_model_comparison,global_mean,5,50,7.5,cosine,0.116,0.134559,0.018710,0.021703,0.58,,,,"Broad 50-run comparison"
+broad_model_comparison,gradient_boosting,5,50,7.5,cosine,0.104,0.122824,0.016774,0.019810,0.52,,,,"Broad 50-run comparison"
+broad_model_comparison,bayesian_ridge,10,50,7.5,cosine,0.314,0.114304,0.101290,0.036872,3.14,,,,"Broad 50-run comparison"
+broad_model_comparison,knn,10,50,7.5,cosine,0.230,0.114731,0.074194,0.037010,2.30,,,,"Broad 50-run comparison"
+broad_model_comparison,ridge_cv,10,50,7.5,cosine,0.214,0.096911,0.069032,0.031262,2.14,,,,"Broad 50-run comparison"
+broad_model_comparison,elastic_net_cv,10,50,7.5,cosine,0.184,0.113137,0.059355,0.036496,1.84,,,,"Broad 50-run comparison"
+broad_model_comparison,lasso_cv,10,50,7.5,cosine,0.184,0.118425,0.059355,0.038202,1.84,,,,"Broad 50-run comparison"
+broad_model_comparison,gradient_boosting,10,50,7.5,cosine,0.100,0.083299,0.032258,0.026871,1.00,,,,"Broad 50-run comparison"
+broad_model_comparison,global_mean,10,50,7.5,cosine,0.076,0.062466,0.024516,0.020150,0.76,,,,"Broad 50-run comparison"
+focused_bayesian_vs_knn,bayesian_ridge,5,500,7.5,cosine,0.5364,0.204643,0.086516,0.033007,2.682,0.2512,3.268397e-70,1.072361e-54,"Bayesian Ridge with uncertainty-aware ranking"
+focused_bayesian_vs_knn,knn,5,500,7.5,cosine,0.2852,0.177776,0.046000,0.028673,1.426,,,,"Cosine KNN baseline"
+focused_bayesian_vs_knn,global_mean,5,500,7.5,cosine,0.0948,0.119673,0.015290,0.019302,0.474,,,,"Global mean baseline"
+focused_bayesian_vs_knn,bayesian_ridge,10,500,7.5,cosine,0.3246,0.128561,0.104710,0.041471,3.246,0.0886,7.893173e-32,1.801206e-28,"Bayesian Ridge with uncertainty-aware ranking"
+focused_bayesian_vs_knn,knn,10,500,7.5,cosine,0.2360,0.113357,0.076129,0.036567,2.360,,,,"Cosine KNN baseline"
+focused_bayesian_vs_knn,global_mean,10,500,7.5,cosine,0.0638,0.058278,0.020581,0.018799,0.638,,,,"Global mean baseline"

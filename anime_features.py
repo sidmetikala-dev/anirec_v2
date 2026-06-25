@@ -72,6 +72,32 @@ class AnimeFeatureBuilder:
 
         return pd.concat([anime_genres_df.drop(columns=["genres"]), genre_features], axis=1)
 
+    def build_studio_features(self):
+        rows = []
+
+        for anime in self.anime_data.values():
+            rows.append({
+                "anime_id": anime["id"],
+                "studios": [
+                    studio["name"]
+                    for studio in anime.get("studios", [])
+                    if studio.get("name")
+                ],
+            })
+
+        anime_studios_df = pd.DataFrame(rows)
+        studio_features = (
+            anime_studios_df["studios"]
+            .str.join("|")
+            .str.get_dummies()
+            .add_prefix("studio_")
+        )
+
+        return pd.concat(
+            [anime_studios_df.drop(columns=["studios"]), studio_features],
+            axis=1,
+        )
+
     def build_synopsis_features(self):
         rows = []
 
