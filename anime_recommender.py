@@ -10,9 +10,17 @@ class SimilarityRecommender:
     def __init__(self):
         self.raw_numeric_columns = [
             "mean",
+            "rank",
             "popularity",
+            "num_list_users",
             "num_scoring_users",
             "num_episodes",
+            "statistics_num_list_users",
+            "watching",
+            "completed",
+            "on_hold",
+            "dropped",
+            "plan_to_watch",
         ]
         self.preprocessor = None
         self.vector_columns = None
