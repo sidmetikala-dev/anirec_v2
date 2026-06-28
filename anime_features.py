@@ -44,14 +44,18 @@ class AnimeFeatureBuilder:
 
         anime_df_num = anime_df_num.drop(
             columns=[
-                "statistics_num_list_users",
-                "watching",
                 "completed",
                 "on_hold",
+                "statistics_num_list_users",
+                # "watching",
                 "dropped",
                 "plan_to_watch",
                 "num_list_users",
+                "num_scoring_users",
+                "num_episodes",
                 "rank",
+                # "popularity",
+                # "mean",
             ],
             errors="ignore",
         )

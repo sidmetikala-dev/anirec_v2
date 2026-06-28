@@ -157,7 +157,7 @@ class HitRateEvaluator:
 
     def evaluate_bayesian_once(
         self,
-        uncertainty_weight=7.5,
+        uncertainty_weight=8.5,
         top_ks=(5, 10, 20, 50, 100),
         random_state=None,
     ):
@@ -328,7 +328,7 @@ class HitRateEvaluator:
 
     def compare_models(
         self,
-        uncertainty_weight=7.5,
+        uncertainty_weight=8.5,
         n_runs=50,
         top_ks=(5, 10),
         ridge_alphas=None,
@@ -537,3 +537,7 @@ class HitRateEvaluator:
         results = pd.DataFrame(rows)
         summary = self.summarize(results, ["model", "k"])
         return results, summary
+    
+class RankingMetricEvaluator:
+    def __init__():
+        

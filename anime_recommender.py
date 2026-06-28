@@ -124,7 +124,7 @@ class SimilarityRecommender:
 
 
 class BayesianRidgeRecommender:
-    def __init__(self, uncertainty_weight=7.5, score_min=1, score_max=10):
+    def __init__(self, uncertainty_weight=8.5, score_min=1, score_max=10):
         self.uncertainty_weight = uncertainty_weight
         self.score_min = score_min
         self.score_max = score_max
