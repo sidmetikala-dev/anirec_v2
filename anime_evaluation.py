@@ -538,6 +538,244 @@ class HitRateEvaluator:
         summary = self.summarize(results, ["model", "k"])
         return results, summary
     
-class RankingMetricEvaluator:
-    def __init__():
-        
+class RankingMetricEvaluator(HitRateEvaluator):
+    def __init__(
+        self,
+        anime_df_scaled,
+        scores,
+        anime_df=None,
+        anime_data_client=None,
+        anime_data=None,
+        builder=None,
+        recommender=None,
+        like_threshold=None,
+        relevance_threshold=6,
+        heldout_fraction=0.25,
+    ):
+        super().__init__(
+            anime_df_scaled=anime_df_scaled,
+            anime_df=anime_df,
+            scores=scores,
+            anime_data_client=anime_data_client,
+            anime_data=anime_data,
+            builder=builder,
+            recommender=recommender,
+            like_threshold=like_threshold,
+            heldout_fraction=heldout_fraction,
+        )
+        self.relevance_threshold = relevance_threshold
+        self.rated_eval = self._add_relevance(self.rated_eval)
+
+    def _add_relevance(self, rated_eval):
+        rated_eval = rated_eval.copy()
+        scores = rated_eval["score"].astype(float)
+        rated_eval["relevance"] = np.select(
+            [
+                scores >= self.like_threshold,
+                (scores > self.relevance_threshold)
+                & (scores < self.like_threshold),
+            ],
+            [2, 1],
+            default=0,
+        )
+        return rated_eval
+
+    def _sample_ranking_split(self, random_state=None):
+        test_eval = self.rated_eval.sample(
+            frac=self.heldout_fraction,
+            random_state=random_state,
+        )
+        test_ids = set(test_eval["anime_id"])
+
+        train_eval = self.rated_eval[
+            ~self.rated_eval["anime_id"].isin(test_ids)
+        ]
+        train_ids = train_eval["anime_id"].tolist()
+        candidate_ids = [
+            anime_id
+            for anime_id in self.anime_df_scaled.index
+            if anime_id not in set(train_ids)
+        ]
+
+        return train_eval, train_ids, candidate_ids, test_eval
+
+    @staticmethod
+    def dcg_at_k(relevance, k):
+        relevance = np.asarray(relevance, dtype=float)[:k]
+        if relevance.size == 0:
+            return 0.0
+
+        discounts = np.log2(np.arange(2, relevance.size + 2))
+        gains = np.power(2, relevance) - 1
+        return float(np.sum(gains / discounts))
+
+    @classmethod
+    def ndcg_at_k(cls, ranked_relevance, ideal_relevance, k):
+        ideal_dcg = cls.dcg_at_k(sorted(ideal_relevance, reverse=True), k)
+        if np.isclose(ideal_dcg, 0):
+            return np.nan
+
+        return cls.dcg_at_k(ranked_relevance, k) / ideal_dcg
+
+    @staticmethod
+    def mrr_at_k(ranked_relevance, k):
+        for rank, relevance in enumerate(ranked_relevance[:k], start=1):
+            if relevance > 0:
+                return 1 / rank
+
+        return 0.0
+
+    def _score_ranking_top_k(self, recommendations, top_ks, test_eval):
+        ranked_relevance = recommendations["relevance"].to_numpy()
+        ideal_relevance = test_eval["relevance"].to_numpy()
+        rows = []
+
+        for k in top_ks:
+            top_k_relevance = ranked_relevance[:k]
+            rows.append({
+                "k": k,
+                "ndcg_at_k": self.ndcg_at_k(
+                    ranked_relevance,
+                    ideal_relevance,
+                    k,
+                ),
+                "mrr_at_k": self.mrr_at_k(ranked_relevance, k),
+                "relevant_hits_at_k": int(np.sum(top_k_relevance > 0)),
+                "strong_hits_at_k": int(np.sum(top_k_relevance == 2)),
+                "test_relevant": int(np.sum(ideal_relevance > 0)),
+                "test_strong_relevant": int(np.sum(ideal_relevance == 2)),
+            })
+
+        return rows
+
+    @staticmethod
+    def summarize_ranking(results, group_cols):
+        return (
+            results
+            .groupby(group_cols)
+            .agg(
+                avg_ndcg_at_k=("ndcg_at_k", "mean"),
+                std_ndcg_at_k=("ndcg_at_k", "std"),
+                avg_mrr_at_k=("mrr_at_k", "mean"),
+                std_mrr_at_k=("mrr_at_k", "std"),
+                avg_relevant_hits_at_k=("relevant_hits_at_k", "mean"),
+                avg_strong_hits_at_k=("strong_hits_at_k", "mean"),
+                avg_test_relevant=("test_relevant", "mean"),
+                avg_test_strong_relevant=("test_strong_relevant", "mean"),
+            )
+            .reset_index()
+            .sort_values(
+                [group_cols[-1], "avg_ndcg_at_k"],
+                ascending=[True, False],
+            )
+        )
+
+    def evaluate_bayesian_once(
+        self,
+        uncertainty_weight=8.5,
+        top_ks=(5, 10),
+        random_state=None,
+        include_global_mean=True,
+    ):
+        train_eval, train_ids, candidate_ids, test_eval = (
+            self._sample_ranking_split(random_state=random_state)
+        )
+
+        X_train = self.anime_df_scaled.loc[train_ids].to_numpy()
+        y_train = train_eval["score"].to_numpy(dtype=float)
+        X_candidates = self.anime_df_scaled.loc[candidate_ids].to_numpy()
+
+        model = BayesianRidge()
+        model.fit(X_train, y_train)
+        predicted_score, uncertainty = model.predict(
+            X_candidates,
+            return_std=True,
+        )
+        predicted_score = np.clip(predicted_score, 1, 10)
+        uncertainty = self._scale_uncertainty(uncertainty)
+
+        relevance_by_id = test_eval.set_index("anime_id")["relevance"].to_dict()
+        base_recommendations = pd.DataFrame({
+            "anime_id": candidate_ids,
+            "predicted_score": predicted_score,
+            "uncertainty": uncertainty,
+        })
+        base_recommendations["ranking_score"] = (
+            base_recommendations["predicted_score"]
+            - uncertainty_weight * base_recommendations["uncertainty"]
+        )
+        base_recommendations["relevance"] = (
+            base_recommendations["anime_id"]
+            .map(relevance_by_id)
+            .fillna(0)
+            .astype(int)
+        )
+
+        ranked_frames = {
+            "bayesian_ridge": base_recommendations.sort_values(
+                "ranking_score",
+                ascending=False,
+            )
+        }
+
+        if (
+            include_global_mean
+            and self.anime_df is not None
+            and "mean" in self.anime_df.columns
+        ):
+            baseline_recommendations = base_recommendations[
+                ["anime_id", "relevance"]
+            ].copy()
+            baseline_recommendations["global_mean"] = self.anime_df.loc[
+                baseline_recommendations["anime_id"],
+                "mean",
+            ].to_numpy()
+            if "num_scoring_users" in self.anime_df.columns:
+                baseline_recommendations["num_scoring_users"] = self.anime_df.loc[
+                    baseline_recommendations["anime_id"],
+                    "num_scoring_users",
+                ].to_numpy()
+            ranked_frames["global_mean"] = self._sort_with_anime_tiebreakers(
+                baseline_recommendations,
+                "global_mean",
+            )
+
+        rows = []
+        for model_name, recommendations in ranked_frames.items():
+            for row in self._score_ranking_top_k(
+                recommendations,
+                top_ks,
+                test_eval,
+            ):
+                row["model"] = model_name
+                rows.append(row)
+
+        return pd.DataFrame(rows)
+
+    def evaluate_bayesian(
+        self,
+        uncertainty_weight=8.5,
+        n_runs=50,
+        top_ks=(5, 10),
+        random_state=None,
+        include_global_mean=True,
+    ):
+        rng = np.random.default_rng(random_state)
+        rows = []
+
+        for run in range(n_runs):
+            split_seed = None if random_state is None else int(
+                rng.integers(0, 2**32 - 1)
+            )
+            run_results = self.evaluate_bayesian_once(
+                uncertainty_weight=uncertainty_weight,
+                top_ks=top_ks,
+                random_state=split_seed,
+                include_global_mean=include_global_mean,
+            )
+            run_results["run"] = run + 1
+            rows.append(run_results)
+
+        results = pd.concat(rows, ignore_index=True)
+        summary = self.summarize_ranking(results, ["model", "k"])
+        return results, summary
