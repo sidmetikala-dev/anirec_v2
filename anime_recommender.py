@@ -74,7 +74,6 @@ class SimilarityRecommender:
         )
         return self.anime_vectors
 
-
     def create_user_vec(self, scores, anime_vectors=None, baseline_score=6):
         anime_vectors = anime_vectors or self.anime_vectors
         if anime_vectors is None:
@@ -124,13 +123,81 @@ class SimilarityRecommender:
 
 
 class BayesianRidgeRecommender:
-    def __init__(self, uncertainty_weight=8.5, score_min=1, score_max=10):
+    def __init__(
+        self,
+        anime_data_client=None,
+        uncertainty_weight=8.5,
+        score_min=1,
+        score_max=10,
+        user_scores=None,
+        anime_data=None,
+        builder=None,
+        recommender=None,
+        anime_df=None,
+        anime_df_scaled=None,
+        anime_vectors=None,
+    ):
         self.uncertainty_weight = uncertainty_weight
         self.score_min = score_min
         self.score_max = score_max
         self.model = BayesianRidge()
-        self.anime_df_scaled = None
+        self.user_scores = user_scores
+        self.anime_df = anime_df
+        self.anime_df_scaled = anime_df_scaled
+        self.rated_items = []
         self.rated_ids = set()
+
+        if anime_data_client is not None:
+            if (
+                user_scores is None
+                or anime_data is None
+                or builder is None
+                or recommender is None
+            ):
+                raise ValueError(
+                    "user_scores, anime_data, builder, and recommender are "
+                    "required when anime_data_client is provided."
+                )
+
+            (
+                self.rated_items,
+                self.anime_df,
+                anime_vectors,
+                self.anime_df_scaled,
+                _,
+            ) = anime_data_client.get_rated_items(
+                user_scores=user_scores,
+                anime_data=anime_data,
+                builder=builder,
+                recommender=recommender,
+                anime_df=anime_df,
+                anime_vectors=(
+                    anime_vectors
+                    or getattr(recommender, "anime_vectors", None)
+                ),
+            )
+
+        self.anime_vectors = anime_vectors
+        if self.anime_df_scaled is None and recommender is not None:
+            self.anime_df_scaled = getattr(recommender, "anime_df_scaled", None)
+
+        if not self.rated_items and self.user_scores is not None:
+            self.rated_items = self._build_rated_items(self.user_scores)
+
+    def _build_rated_items(self, scores):
+        if self.anime_df_scaled is None:
+            raise ValueError(
+                "anime_df_scaled is required to build rated training items."
+            )
+
+        return [
+            (anime_id, self.anime_df_scaled.loc[anime_id].to_numpy(), score)
+            for anime_id, score in scores.items()
+            if (
+                anime_id in self.anime_df_scaled.index
+                and score not in (None, 0, "-")
+            )
+        ]
 
     @staticmethod
     def _scale_uncertainty(uncertainty, lower_quantile=0.05, upper_quantile=0.95):
@@ -151,20 +218,17 @@ class BayesianRidgeRecommender:
             clipped.reshape(-1, 1)
         ).ravel()
 
-    def fit(self, anime_df_scaled, scores):
-        rated_items = [
-            (anime_id, score)
-            for anime_id, score in scores.items()
-            if anime_id in anime_df_scaled.index and score not in (None, 0, "-")
-        ]
-        if not rated_items:
+    def fit(self):
+        if self.anime_df_scaled is None:
+            raise ValueError("anime_df_scaled is required to fit the reranker.")
+
+        if not self.rated_items:
             raise ValueError("Need at least one scored anime to fit the reranker.")
 
-        rated_ids = [anime_id for anime_id, _ in rated_items]
-        y_train = np.array([score for _, score in rated_items], dtype=float)
-        X_train = anime_df_scaled.loc[rated_ids].to_numpy()
+        rated_ids = [anime_id for anime_id, _, _ in self.rated_items]
+        y_train = np.array([score for _, _, score in self.rated_items], dtype=float)
+        X_train = self.anime_df_scaled.loc[rated_ids].to_numpy()
 
-        self.anime_df_scaled = anime_df_scaled
         self.rated_ids = set(rated_ids)
         self.model.fit(X_train, y_train)
         return self

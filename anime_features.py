@@ -11,9 +11,11 @@ class AnimeFeatureBuilder:
         self.tfidf = None
         self.svd = None
         self.svd_explained_variance = None
+        self.synopsis_svd_columns = None
 
-    def build_num_features(self):
-        anime_df_num = pd.DataFrame(self.anime_data.values())
+    def build_num_features(self, anime_data=None):
+        anime_data = self.anime_data if anime_data is None else anime_data
+        anime_df_num = pd.DataFrame(anime_data.values())
         anime_df_num = anime_df_num.drop(
             columns=[
                 "main_picture",
@@ -62,10 +64,11 @@ class AnimeFeatureBuilder:
 
         return anime_df_num
 
-    def build_genre_features(self):
+    def build_genre_features(self, anime_data=None):
+        anime_data = self.anime_data if anime_data is None else anime_data
         rows = []
 
-        for anime in self.anime_data.values():
+        for anime in anime_data.values():
             rows.append({
                 "anime_id": anime["id"],
                 "genres": [genre["name"] for genre in anime.get("genres", [])]
@@ -102,10 +105,11 @@ class AnimeFeatureBuilder:
             axis=1,
         )
 
-    def build_synopsis_features(self):
+    def build_synopsis_features(self, anime_data=None, fit_tfidf=True):
+        anime_data = self.anime_data if anime_data is None else anime_data
         rows = []
 
-        for anime in self.anime_data.values():
+        for anime in anime_data.values():
             rows.append({
                 "anime_id" : anime["id"], 
                 "title" : anime["title"],
@@ -116,48 +120,75 @@ class AnimeFeatureBuilder:
 
         anime_synopsis_df["synopsis"] = anime_synopsis_df["synopsis"].fillna("")
 
-        self.tfidf = TfidfVectorizer(
-            max_features=self.max_tfidf_features,
-            stop_words="english",
-        )
-        synopsis_tfidf = self.tfidf.fit_transform(anime_synopsis_df["synopsis"])
+        if fit_tfidf:
+            self.tfidf = TfidfVectorizer(
+                max_features=self.max_tfidf_features,
+                stop_words="english",
+            )
+            synopsis_tfidf = self.tfidf.fit_transform(anime_synopsis_df["synopsis"])
+        else:
+            if self.tfidf is None:
+                raise ValueError(
+                    "Call build_features with fit_tfidf=True before reusing TF-IDF."
+                )
+            synopsis_tfidf = self.tfidf.transform(anime_synopsis_df["synopsis"])
 
-        synopsis_features = pd.DataFrame(
-            synopsis_tfidf.toarray(),
-            columns=self.tfidf.get_feature_names_out(),
-            index=anime_synopsis_df["anime_id"]
-        )
+        return synopsis_tfidf, anime_synopsis_df["anime_id"]
 
-        return synopsis_tfidf, synopsis_features
+    def apply_svd(self, synopsis_tfidf, anime_ids, fit_svd=True):
+        if fit_svd:
+            n_components = min(
+                self.n_svd_components,
+                synopsis_tfidf.shape[0] - 1,
+                synopsis_tfidf.shape[1] - 1,
+            )
 
-    def apply_svd(self, synopsis_tfidf, anime_ids):
-        n_components = min(
-            self.n_svd_components,
-            synopsis_tfidf.shape[0] - 1,
-            synopsis_tfidf.shape[1] - 1,
-        )
+            self.svd = TruncatedSVD(
+                n_components=n_components,
+                algorithm='randomized',
+                n_iter=2,
+                random_state=42
+            )
 
-        self.svd = TruncatedSVD(
-            n_components=n_components,
-            random_state=42
-        )
-
-        synopsis_svd = self.svd.fit_transform(synopsis_tfidf)
-        self.svd_explained_variance = self.svd.explained_variance_ratio_.sum()
+            synopsis_svd = self.svd.fit_transform(synopsis_tfidf)
+            self.svd_explained_variance = self.svd.explained_variance_ratio_.sum()
+            self.synopsis_svd_columns = [
+                f"synopsis_svd_{i}"
+                for i in range(n_components)
+            ]
+        else:
+            if self.svd is None or self.synopsis_svd_columns is None:
+                raise ValueError(
+                    "Call build_features with fit_svd=True before reusing SVD."
+                )
+            synopsis_svd = self.svd.transform(synopsis_tfidf)
 
         synopsis_svd_df = pd.DataFrame(
             synopsis_svd,
-            columns=[f"synopsis_svd_{i}" for i in range(n_components)],
+            columns=self.synopsis_svd_columns,
             index=anime_ids
         )
 
         return synopsis_svd_df
 
-    def combine_features(self):
-        anime_df_num = self.build_num_features()
-        anime_genres_df = self.build_genre_features()
-        synopsis_tfidf, synopsis_features = self.build_synopsis_features()
-        synopsis_svd_df = self.apply_svd(synopsis_tfidf, synopsis_features.index)
+    def combine_features(
+        self,
+        anime_data=None,
+        fit_tfidf=True,
+        fit_svd=True,
+    ):
+        anime_data = self.anime_data if anime_data is None else anime_data
+        anime_df_num = self.build_num_features(anime_data)
+        anime_genres_df = self.build_genre_features(anime_data)
+        synopsis_tfidf, anime_ids = self.build_synopsis_features(
+            anime_data,
+            fit_tfidf=fit_tfidf,
+        )
+        synopsis_svd_df = self.apply_svd(
+            synopsis_tfidf,
+            anime_ids,
+            fit_svd=fit_svd,
+        )
 
         anime_df = pd.concat([anime_df_num.set_index("id"), 
                               anime_genres_df.set_index("anime_id"), 
@@ -165,5 +196,8 @@ class AnimeFeatureBuilder:
 
         return anime_df.dropna()
 
-    def build_features(self):
-        return self.combine_features()
+    def build_features(self, fit_tfidf=True, fit_svd=True):
+        return self.combine_features(
+            fit_tfidf=fit_tfidf,
+            fit_svd=fit_svd,
+        )

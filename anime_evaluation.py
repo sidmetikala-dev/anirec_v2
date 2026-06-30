@@ -752,6 +752,74 @@ class RankingMetricEvaluator(HitRateEvaluator):
 
         return pd.DataFrame(rows)
 
+    def tune_bayesian_uncertainty_ranking(
+        self,
+        weights,
+        n_runs=50,
+        top_ks=(5, 10),
+        random_state=None,
+    ):
+        rng = np.random.default_rng(random_state)
+        rows = []
+
+        for run in range(n_runs):
+            split_seed = None if random_state is None else int(
+                rng.integers(0, 2**32 - 1)
+            )
+            train_eval, train_ids, candidate_ids, test_eval = (
+                self._sample_ranking_split(random_state=split_seed)
+            )
+
+            X_train = self.anime_df_scaled.loc[train_ids].to_numpy()
+            y_train = train_eval["score"].to_numpy(dtype=float)
+            X_candidates = self.anime_df_scaled.loc[candidate_ids].to_numpy()
+
+            model = BayesianRidge()
+            model.fit(X_train, y_train)
+            predicted_score, uncertainty = model.predict(
+                X_candidates,
+                return_std=True,
+            )
+            predicted_score = np.clip(predicted_score, 1, 10)
+            uncertainty = self._scale_uncertainty(uncertainty)
+
+            relevance_by_id = test_eval.set_index("anime_id")["relevance"].to_dict()
+            base_recommendations = pd.DataFrame({
+                "anime_id": candidate_ids,
+                "predicted_score": predicted_score,
+                "uncertainty": uncertainty,
+            })
+            base_recommendations["relevance"] = (
+                base_recommendations["anime_id"]
+                .map(relevance_by_id)
+                .fillna(0)
+                .astype(int)
+            )
+
+            for weight in weights:
+                recommendations = base_recommendations.copy()
+                recommendations["ranking_score"] = (
+                    recommendations["predicted_score"]
+                    - weight * recommendations["uncertainty"]
+                )
+                recommendations = recommendations.sort_values(
+                    "ranking_score",
+                    ascending=False,
+                )
+
+                for row in self._score_ranking_top_k(
+                    recommendations,
+                    top_ks,
+                    test_eval,
+                ):
+                    row["run"] = run + 1
+                    row["uncertainty_weight"] = weight
+                    rows.append(row)
+
+        results = pd.DataFrame(rows)
+        summary = self.summarize_ranking(results, ["uncertainty_weight", "k"])
+        return results, summary
+
     def evaluate_bayesian(
         self,
         uncertainty_weight=8.5,
