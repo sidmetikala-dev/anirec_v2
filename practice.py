@@ -1,18 +1,24 @@
 import os
+import psycopg
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
 load_dotenv(".env")
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
-supabase: Client = create_client(url, key)
 
-response = (
-    supabase.table("todos")
-    .delete()
-    .eq("id", 2)
-    .execute()
+conn = psycopg.connect(
+    os.environ["DATABASE_URL_DEV"],
+    prepare_threshold=None,
 )
+cur = conn.cursor()
 
-print(response)
+cur.execute("""
+            DROP TABLE users
+""")
+
+conn.commit()
+
+cur.close()
+conn.close()
+
+

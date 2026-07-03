@@ -126,7 +126,7 @@ class BayesianRidgeRecommender:
     def __init__(
         self,
         anime_data_client=None,
-        uncertainty_weight=8.5,
+        uncertainty_weight=20,
         score_min=1,
         score_max=10,
         user_scores=None,
@@ -136,6 +136,7 @@ class BayesianRidgeRecommender:
         anime_df=None,
         anime_df_scaled=None,
         anime_vectors=None,
+        clip_predictions=False,
     ):
         self.uncertainty_weight = uncertainty_weight
         self.score_min = score_min
@@ -147,6 +148,7 @@ class BayesianRidgeRecommender:
         self.anime_df_scaled = anime_df_scaled
         self.rated_items = []
         self.rated_ids = set()
+        self.clip_predictions = clip_predictions
 
         if anime_data_client is not None:
             if (
@@ -240,7 +242,8 @@ class BayesianRidgeRecommender:
 
         X_candidates = self.anime_df_scaled.loc[anime_ids].to_numpy()
         predicted_score, uncertainty = self.model.predict(X_candidates, return_std=True)
-        predicted_score = np.clip(predicted_score, self.score_min, self.score_max)
+        if self.clip_predictions:
+            predicted_score = np.clip(predicted_score, self.score_min, self.score_max)
         return predicted_score, uncertainty
 
     def rank_candidates(
@@ -286,7 +289,7 @@ class BayesianRidgeRecommender:
             return "Unknown"
         return anime.get("title", "Unknown")
     
-    def get_recs(self):
+    def get_unfiltered_recs(self):
         ranked_df = self.rank_candidates().copy()
 
         if self.anime_data is None:
@@ -296,4 +299,37 @@ class BayesianRidgeRecommender:
         ranked_df["title"] = ranked_df["anime_id"].apply(
             lambda anime_id: self._get_title(anime_id, self.anime_data)
         )
-        return ranked_df["title"]
+        return ranked_df
+    
+    def get_recs(self, top_k=5, filter_unwatched_prequels=True):
+        recs = self.get_unfiltered_recs()
+
+        def check_prequel(anime_id):
+            if self.anime_data is None or self.user_scores is None:
+                return True
+
+            anime = self.anime_data.get(str(anime_id), {})
+            related_animes = anime.get("related_anime", [])
+
+            prequel_ids = [
+                related_anime["node"]["id"]
+                for related_anime in related_animes
+                if related_anime.get("relation_type") == "prequel"
+            ]
+
+            if not prequel_ids:
+                return True
+
+            return all(prequel_id in self.user_scores for prequel_id in prequel_ids)
+
+        if not filter_unwatched_prequels:
+            return recs.head(top_k).reset_index(drop=True)
+
+        valid_indices = []
+        for index, row in recs.iterrows():
+            if len(valid_indices) >= top_k:
+                break
+            if check_prequel(row["anime_id"]):
+                valid_indices.append(index)
+
+        return recs.loc[valid_indices].reset_index(drop=True)
