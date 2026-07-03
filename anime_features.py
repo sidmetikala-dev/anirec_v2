@@ -27,6 +27,7 @@ class AnimeFeatureBuilder:
                 "rating",
                 "recommendations",
                 "studios",
+                "related_anime",
             ],
             errors="ignore",
         )

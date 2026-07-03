@@ -8,12 +8,12 @@ from requests.exceptions import RequestException
 
 class AnimeDataClient:
     CACHE_FIELDS = (
-        "id,title,synopsis,mean,popularity,genres,statistics"
+        "id,title,synopsis,mean,popularity,genres,statistics,main_picture,related_anime"
     )
     FULL_FIELDS = (
         "id,title,synopsis,mean,rank,popularity,num_list_users,"
         "num_scoring_users,media_type,status,genres,num_episodes,rating,"
-        "recommendations,studios,statistics"
+        "recommendations,studios,statistics,main_picture,related_anime"
     )
 
     def __init__(self, client_id, cache_file="anime_cache.json", caching_mode=True):
@@ -149,7 +149,7 @@ class AnimeDataClient:
                                 "MAL rate limit hit while fetching anime "
                                 f"ID {anime_id}: {error}"
                             )
-                            for pending_future in list(future.keys()):
+                            for pending_future in futures:
                                 pending_future.cancel()
                             if cache_changed:
                                 print("Saving cache before returning...")
@@ -182,6 +182,75 @@ class AnimeDataClient:
             self._save_cache(anime_cache)
 
         return anime_data
+
+    def refresh(self, max_workers=3, save_every=50):
+        self.last_rate_limited = False
+        anime_cache = self._load_cache()
+        anime_ids = [
+            int(anime_id)
+            for anime_id, anime in anime_cache.items()
+            if "related_anime" not in anime
+        ]
+
+        if not anime_ids:
+            print("All cached anime already include related_anime.")
+            return anime_cache
+
+        print(f"Refreshing {len(anime_ids)} cached anime missing related_anime...")
+
+        refreshed = 0
+        skipped = 0
+        consecutive_skipped = 0
+        worker_count = max(1, min(max_workers, len(anime_ids)))
+
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = {
+                executor.submit(self._fetch_anime_detail, anime_id): anime_id
+                for anime_id in anime_ids
+            }
+
+            for i, future in enumerate(as_completed(futures), start=1):
+                anime_id, data, error = future.result()
+                cache_key = str(anime_id)
+
+                if data is None:
+                    skipped += 1
+                    consecutive_skipped += 1
+                    if str(error).startswith("429"):
+                        self.last_rate_limited = True
+                        print(
+                            "MAL rate limit hit while refreshing anime "
+                            f"ID {anime_id}: {error}"
+                        )
+                        for pending_future in futures:
+                            pending_future.cancel()
+                        print("Saving refreshed cache before returning...")
+                        self._save_cache(anime_cache)
+                        return anime_cache
+
+                    continue
+
+                anime_cache[cache_key] = data
+                refreshed += 1
+                consecutive_skipped = 0
+
+                if i % 25 == 0 or i == len(anime_ids):
+                    print(
+                        f"Processed {i}/{len(anime_ids)} cached anime "
+                        f"({refreshed} refreshed, {skipped} skipped, "
+                        f"{consecutive_skipped} consecutive skipped)"
+                    )
+
+                if refreshed > 0 and refreshed % save_every == 0:
+                    print(f"Saving cache after {refreshed} refreshed anime...")
+                    self._save_cache(anime_cache)
+
+        print(
+            "Saving final refreshed cache... "
+            f"({refreshed} refreshed, {skipped} skipped)"
+        )
+        self._save_cache(anime_cache)
+        return anime_cache
 
     def get_rated_items(
         self,

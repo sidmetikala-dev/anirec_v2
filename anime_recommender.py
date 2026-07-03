@@ -142,6 +142,7 @@ class BayesianRidgeRecommender:
         self.score_max = score_max
         self.model = BayesianRidge()
         self.user_scores = user_scores
+        self.anime_data = anime_data
         self.anime_df = anime_df
         self.anime_df_scaled = anime_df_scaled
         self.rated_items = []
@@ -246,8 +247,6 @@ class BayesianRidgeRecommender:
         self,
         candidate_ids=None,
         uncertainty_weight=None,
-        title_by_id=None,
-        actual_scores=None,
     ):
         if self.anime_df_scaled is None:
             raise ValueError("Fit the reranker before ranking candidates.")
@@ -279,16 +278,22 @@ class BayesianRidgeRecommender:
             - uncertainty_weight * recommendations["uncertainty"]
         )
 
-        if title_by_id is not None:
-            recommendations["title"] = [
-                title_by_id.get(int(anime_id), "Unknown")
-                for anime_id in candidate_ids
-            ]
-
-        if actual_scores is not None:
-            recommendations["actual_score"] = [
-                actual_scores.get(int(anime_id))
-                for anime_id in candidate_ids
-            ]
-
         return recommendations.sort_values("ranking_score", ascending=False)
+
+    def _get_title(self, anime_id, anime_data):
+        anime = anime_data.get(str(anime_id))
+        if anime is None:
+            return "Unknown"
+        return anime.get("title", "Unknown")
+    
+    def get_recs(self):
+        ranked_df = self.rank_candidates().copy()
+
+        if self.anime_data is None:
+            ranked_df["title"] = "Unknown"
+            return ranked_df
+
+        ranked_df["title"] = ranked_df["anime_id"].apply(
+            lambda anime_id: self._get_title(anime_id, self.anime_data)
+        )
+        return ranked_df["title"]

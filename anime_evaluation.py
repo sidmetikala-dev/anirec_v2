@@ -137,6 +137,13 @@ class HitRateEvaluator:
         ).ravel()
 
     @staticmethod
+    def _prepare_prediction_scores(predicted_score, clip_predictions=False):
+        predicted_score = np.asarray(predicted_score, dtype=float)
+        if clip_predictions:
+            return np.clip(predicted_score, 1, 10)
+        return predicted_score
+
+    @staticmethod
     def summarize(results, group_cols):
         return (
             results
@@ -160,6 +167,7 @@ class HitRateEvaluator:
         uncertainty_weight=8.5,
         top_ks=(5, 10, 20, 50, 100),
         random_state=None,
+        clip_predictions=False,
     ):
         train_eval, train_ids, candidate_ids, heldout_ids = self._sample_split(
             random_state=random_state
@@ -175,7 +183,10 @@ class HitRateEvaluator:
             X_candidates,
             return_std=True,
         )
-        predicted_score = np.clip(predicted_score, 1, 10)
+        predicted_score = self._prepare_prediction_scores(
+            predicted_score,
+            clip_predictions=clip_predictions,
+        )
 
         recommendations = pd.DataFrame({
             "anime_id": candidate_ids,
@@ -207,6 +218,7 @@ class HitRateEvaluator:
         n_runs=50,
         top_ks=(5, 10),
         random_state=None,
+        clip_predictions=False,
     ):
         rng = np.random.default_rng(random_state)
         rows = []
@@ -228,7 +240,10 @@ class HitRateEvaluator:
                 X_candidates,
                 return_std=True,
             )
-            predicted_score = np.clip(predicted_score, 1, 10)
+            predicted_score = self._prepare_prediction_scores(
+                predicted_score,
+                clip_predictions=clip_predictions,
+            )
 
             base_recommendations = pd.DataFrame({
                 "anime_id": candidate_ids,
@@ -336,6 +351,9 @@ class HitRateEvaluator:
         include_lasso=False,
         include_elastic_net=False,
         include_knn=True,
+        include_hybrid_model=False,
+        hybrid_global_weight=0.6,
+        hybrid_bayesian_weight=0.4,
         include_gradient_boosting=True,
         knn_neighbors=20,
         knn_weights="distance",
@@ -346,6 +364,7 @@ class HitRateEvaluator:
         elastic_l1_ratios=None,
         cv=3,
         random_state=None,
+        clip_predictions=False,
     ):
         ridge_alphas = (
             np.logspace(-2, 3, 100)
@@ -396,9 +415,12 @@ class HitRateEvaluator:
                 X_candidates,
                 return_std=True,
             )
+            bayes_pred = self._prepare_prediction_scores(
+                bayes_pred,
+                clip_predictions=clip_predictions,
+            )
             bayes_score = (
-                np.clip(bayes_pred, 1, 10)
-                - uncertainty_weight * self._scale_uncertainty(bayes_std)
+                bayes_pred - uncertainty_weight * self._scale_uncertainty(bayes_std)
             )
 
             ridge_model = None
@@ -406,7 +428,10 @@ class HitRateEvaluator:
             if include_ridge_cv:
                 ridge_model = RidgeCV(alphas=ridge_alphas)
                 ridge_model.fit(X_train, y_train)
-                ridge_score = np.clip(ridge_model.predict(X_candidates), 1, 10)
+                ridge_score = self._prepare_prediction_scores(
+                    ridge_model.predict(X_candidates),
+                    clip_predictions=clip_predictions,
+                )
 
             knn_model = None
             knn_score = None
@@ -417,7 +442,10 @@ class HitRateEvaluator:
                     metric=knn_metric,
                 )
                 knn_model.fit(X_train, y_train)
-                knn_score = np.clip(knn_model.predict(X_candidates), 1, 10)
+                knn_score = self._prepare_prediction_scores(
+                    knn_model.predict(X_candidates),
+                    clip_predictions=clip_predictions,
+                )
 
             gradient_model = None
             gradient_score = None
@@ -426,10 +454,9 @@ class HitRateEvaluator:
                     **gradient_boosting_params
                 )
                 gradient_model.fit(X_train, y_train)
-                gradient_score = np.clip(
+                gradient_score = self._prepare_prediction_scores(
                     gradient_model.predict(X_candidates),
-                    1,
-                    10,
+                    clip_predictions=clip_predictions,
                 )
 
             lasso_model = None
@@ -442,7 +469,10 @@ class HitRateEvaluator:
                     random_state=42,
                 )
                 lasso_model.fit(X_train, y_train)
-                lasso_score = np.clip(lasso_model.predict(X_candidates), 1, 10)
+                lasso_score = self._prepare_prediction_scores(
+                    lasso_model.predict(X_candidates),
+                    clip_predictions=clip_predictions,
+                )
 
             elastic_model = None
             elastic_score = None
@@ -455,7 +485,10 @@ class HitRateEvaluator:
                     random_state=42,
                 )
                 elastic_model.fit(X_train, y_train)
-                elastic_score = np.clip(elastic_model.predict(X_candidates), 1, 10)
+                elastic_score = self._prepare_prediction_scores(
+                    elastic_model.predict(X_candidates),
+                    clip_predictions=clip_predictions,
+                )
 
             run_recommendations = pd.DataFrame({
                 "anime_id": candidate_ids,
@@ -486,15 +519,22 @@ class HitRateEvaluator:
                     candidate_ids,
                     "mean",
                 ].to_numpy()
+                if include_hybrid_model:
+                    run_recommendations["hybrid_model"] = (
+                        hybrid_global_weight * run_recommendations["global_mean"]
+                        + hybrid_bayesian_weight * run_recommendations["bayesian_ridge"]
+                    )
                 if "num_scoring_users" in self.anime_df.columns:
                     run_recommendations["num_scoring_users"] = self.anime_df.loc[
                         candidate_ids,
                         "num_scoring_users",
                     ].to_numpy()
+                if include_hybrid_model:
+                    model_names.append("hybrid_model")
                 model_names.append("global_mean")
 
             for model_name in model_names:
-                if model_name == "global_mean":
+                if model_name in ("global_mean", "hybrid_model"):
                     recommendations = self._sort_with_anime_tiebreakers(
                         run_recommendations,
                         model_name,
@@ -537,6 +577,137 @@ class HitRateEvaluator:
         results = pd.DataFrame(rows)
         summary = self.summarize(results, ["model", "k"])
         return results, summary
+
+    def tune_hybrid_weights(
+        self,
+        global_weights=None,
+        uncertainty_weight=8.5,
+        n_runs=50,
+        top_ks=(5, 10),
+        random_state=None,
+        include_global_mean=True,
+        include_bayesian=True,
+        clip_predictions=False,
+    ):
+        if self.anime_df is None or "mean" not in self.anime_df.columns:
+            raise ValueError("anime_df with a mean column is required for hybrid tuning.")
+
+        global_weights = (
+            np.linspace(0, 1, 11)
+            if global_weights is None
+            else np.asarray(global_weights, dtype=float)
+        )
+
+        rng = np.random.default_rng(random_state)
+        rows = []
+
+        for run in range(n_runs):
+            split_seed = None if random_state is None else int(rng.integers(0, 2**32 - 1))
+            train_eval, train_ids, candidate_ids, heldout_ids = self._sample_split(
+                random_state=split_seed
+            )
+
+            X_train = self.anime_df_scaled.loc[train_ids].to_numpy()
+            y_train = train_eval["score"].to_numpy(dtype=float)
+            X_candidates = self.anime_df_scaled.loc[candidate_ids].to_numpy()
+
+            model = BayesianRidge()
+            model.fit(X_train, y_train)
+            bayes_pred, bayes_std = model.predict(
+                X_candidates,
+                return_std=True,
+            )
+            bayes_pred = self._prepare_prediction_scores(
+                bayes_pred,
+                clip_predictions=clip_predictions,
+            )
+            bayesian_score = (
+                bayes_pred - uncertainty_weight * self._scale_uncertainty(bayes_std)
+            )
+            global_mean_score = self.anime_df.loc[candidate_ids, "mean"].to_numpy()
+
+            recommendations = pd.DataFrame({
+                "anime_id": candidate_ids,
+                "is_hidden_like": pd.Series(candidate_ids)
+                .isin(heldout_ids)
+                .to_numpy(),
+                "bayesian_ridge": bayes_pred,
+                "global_mean": global_mean_score,
+            })
+            if "num_scoring_users" in self.anime_df.columns:
+                recommendations["num_scoring_users"] = self.anime_df.loc[
+                    candidate_ids,
+                    "num_scoring_users",
+                ].to_numpy()
+
+            if include_bayesian:
+                bayesian_recommendations = recommendations.sort_values(
+                    "bayesian_ridge",
+                    ascending=False,
+                )
+                for row in self._score_top_k(
+                    bayesian_recommendations,
+                    top_ks,
+                    heldout_ids,
+                ):
+                    row["run"] = run + 1
+                    row["model"] = "bayesian_ridge"
+                    row["global_weight"] = 0.0
+                    row["bayesian_weight"] = 1.0
+                    rows.append(row)
+
+            if include_global_mean:
+                global_recommendations = self._sort_with_anime_tiebreakers(
+                    recommendations,
+                    "global_mean",
+                )
+                for row in self._score_top_k(
+                    global_recommendations,
+                    top_ks,
+                    heldout_ids,
+                ):
+                    row["run"] = run + 1
+                    row["model"] = "global_mean"
+                    row["global_weight"] = 1.0
+                    row["bayesian_weight"] = 0.0
+                    rows.append(row)
+
+            for global_weight in global_weights:
+                bayesian_weight = 1 - global_weight
+                hybrid_recommendations = recommendations.copy()
+                hybrid_recommendations["hybrid_model"] = (
+                    global_weight * hybrid_recommendations["global_mean"]
+                    + bayesian_weight * hybrid_recommendations["bayesian_ridge"]
+                )
+                hybrid_recommendations = self._sort_with_anime_tiebreakers(
+                    hybrid_recommendations,
+                    "hybrid_model",
+                )
+
+                for row in self._score_top_k(
+                    hybrid_recommendations,
+                    top_ks,
+                    heldout_ids,
+                ):
+                    row["run"] = run + 1
+                    row["model"] = "hybrid_model"
+                    row["global_weight"] = global_weight
+                    row["bayesian_weight"] = bayesian_weight
+                    rows.append(row)
+
+        results = pd.DataFrame(rows)
+        summary = self.summarize(results, ["model", "global_weight", "bayesian_weight", "k"])
+        best_weights = (
+            summary[summary["model"] == "hybrid_model"]
+            .sort_values(
+                ["k", "avg_precision_at_k", "avg_hit_rate"],
+                ascending=[True, False, False],
+            )
+            .groupby("k")
+            .head(1)
+        )
+
+        return results, summary, best_weights
     
 class RankingMetricEvaluator(HitRateEvaluator):
     def __init__(
@@ -676,6 +847,7 @@ class RankingMetricEvaluator(HitRateEvaluator):
         top_ks=(5, 10),
         random_state=None,
         include_global_mean=True,
+        clip_predictions=False,
     ):
         train_eval, train_ids, candidate_ids, test_eval = (
             self._sample_ranking_split(random_state=random_state)
@@ -691,7 +863,10 @@ class RankingMetricEvaluator(HitRateEvaluator):
             X_candidates,
             return_std=True,
         )
-        predicted_score = np.clip(predicted_score, 1, 10)
+        predicted_score = self._prepare_prediction_scores(
+            predicted_score,
+            clip_predictions=clip_predictions,
+        )
         uncertainty = self._scale_uncertainty(uncertainty)
 
         relevance_by_id = test_eval.set_index("anime_id")["relevance"].to_dict()
@@ -758,6 +933,7 @@ class RankingMetricEvaluator(HitRateEvaluator):
         n_runs=50,
         top_ks=(5, 10),
         random_state=None,
+        clip_predictions=False,
     ):
         rng = np.random.default_rng(random_state)
         rows = []
@@ -780,7 +956,10 @@ class RankingMetricEvaluator(HitRateEvaluator):
                 X_candidates,
                 return_std=True,
             )
-            predicted_score = np.clip(predicted_score, 1, 10)
+            predicted_score = self._prepare_prediction_scores(
+                predicted_score,
+                clip_predictions=clip_predictions,
+            )
             uncertainty = self._scale_uncertainty(uncertainty)
 
             relevance_by_id = test_eval.set_index("anime_id")["relevance"].to_dict()
@@ -827,6 +1006,7 @@ class RankingMetricEvaluator(HitRateEvaluator):
         top_ks=(5, 10),
         random_state=None,
         include_global_mean=True,
+        clip_predictions=False,
     ):
         rng = np.random.default_rng(random_state)
         rows = []
@@ -840,6 +1020,7 @@ class RankingMetricEvaluator(HitRateEvaluator):
                 top_ks=top_ks,
                 random_state=split_seed,
                 include_global_mean=include_global_mean,
+                clip_predictions=clip_predictions,
             )
             run_results["run"] = run + 1
             rows.append(run_results)
