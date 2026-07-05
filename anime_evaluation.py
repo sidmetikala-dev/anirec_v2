@@ -22,6 +22,7 @@ class HitRateEvaluator:
         self.anime_df_scaled = anime_df_scaled
         self.anime_df = anime_df
         self.scores = scores
+        self.recommender = recommender
         self.heldout_fraction = heldout_fraction
 
         if anime_data_client is not None:
@@ -88,6 +89,49 @@ class HitRateEvaluator:
         ]
 
         return train_eval, train_ids, candidate_ids, heldout_ids
+
+    def _generated_candidate_ids(
+        self,
+        train_eval,
+        train_ids,
+        candidate_top_k=None,
+        use_candidate_generation=None,
+    ):
+        if use_candidate_generation is None:
+            use_candidate_generation = candidate_top_k is not None
+
+        if not use_candidate_generation:
+            return [
+                anime_id
+                for anime_id in self.anime_df_scaled.index
+                if anime_id not in set(train_ids)
+            ]
+
+        if self.recommender is None:
+            raise ValueError(
+                "recommender is required when candidate generation is enabled."
+            )
+
+        if candidate_top_k is None:
+            candidate_top_k = len(self.anime_df_scaled)
+
+        train_scores = dict(
+            zip(
+                train_eval["anime_id"].tolist(),
+                train_eval["score"].tolist(),
+            )
+        )
+        generated_candidates = self.recommender.generate_candidates(
+            train_scores,
+            top_k=candidate_top_k,
+        )
+        train_id_set = set(train_ids)
+        return [
+            anime_id
+            for anime_id, _ in generated_candidates
+            if anime_id in self.anime_df_scaled.index
+            and anime_id not in train_id_set
+        ]
 
     def _score_top_k(self, recommendations, top_ks, heldout_ids):
         rows = []
@@ -168,10 +212,20 @@ class HitRateEvaluator:
         top_ks=(5, 10, 20, 50, 100),
         random_state=None,
         clip_predictions=False,
+        candidate_top_k=None,
+        use_candidate_generation=None,
     ):
         train_eval, train_ids, candidate_ids, heldout_ids = self._sample_split(
             random_state=random_state
         )
+        candidate_ids = self._generated_candidate_ids(
+            train_eval,
+            train_ids,
+            candidate_top_k,
+            use_candidate_generation,
+        )
+        if not candidate_ids:
+            raise ValueError("No candidates available for this split.")
 
         X_train = self.anime_df_scaled.loc[train_ids].to_numpy()
         y_train = train_eval["score"].to_numpy(dtype=float)
@@ -215,11 +269,31 @@ class HitRateEvaluator:
     def tune_bayesian_uncertainty(
         self,
         weights,
+        similarity_weights=None,
         n_runs=50,
         top_ks=(5, 10),
         random_state=None,
         clip_predictions=False,
+        candidate_top_k=None,
+        use_candidate_generation=None,
     ):
+        if similarity_weights is None:
+            active_similarity_weights = [None]
+        elif np.isscalar(similarity_weights):
+            active_similarity_weights = [similarity_weights]
+        else:
+            active_similarity_weights = list(similarity_weights)
+
+        use_similarity = similarity_weights is not None
+        if use_similarity and use_candidate_generation is False:
+            raise ValueError(
+                "similarity_weights requires candidate generation to be enabled."
+            )
+        if use_similarity and self.recommender is None:
+            raise ValueError(
+                "recommender is required when similarity_weights is provided."
+            )
+
         rng = np.random.default_rng(random_state)
         rows = []
         baseline_rows = []
@@ -229,6 +303,41 @@ class HitRateEvaluator:
             train_eval, train_ids, candidate_ids, heldout_ids = self._sample_split(
                 random_state=split_seed
             )
+            similarity_by_id = {}
+            if use_similarity:
+                active_candidate_top_k = (
+                    len(self.anime_df_scaled)
+                    if candidate_top_k is None
+                    else candidate_top_k
+                )
+
+                train_scores = dict(
+                    zip(
+                        train_eval["anime_id"].tolist(),
+                        train_eval["score"].tolist(),
+                    )
+                )
+                generated_candidates = self.recommender.generate_candidates(
+                    train_scores,
+                    top_k=active_candidate_top_k,
+                )
+                train_id_set = set(train_ids)
+                candidate_ids = [
+                    anime_id
+                    for anime_id, _ in generated_candidates
+                    if anime_id in self.anime_df_scaled.index
+                    and anime_id not in train_id_set
+                ]
+                similarity_by_id = dict(generated_candidates)
+            else:
+                candidate_ids = self._generated_candidate_ids(
+                    train_eval,
+                    train_ids,
+                    candidate_top_k,
+                    use_candidate_generation,
+                )
+            if not candidate_ids:
+                continue
 
             X_train = self.anime_df_scaled.loc[train_ids].to_numpy()
             y_train = train_eval["score"].to_numpy(dtype=float)
@@ -253,6 +362,11 @@ class HitRateEvaluator:
                 "predicted_score": predicted_score,
                 "uncertainty_raw": uncertainty,
             })
+            if use_similarity:
+                base_recommendations["candidate_similarity"] = [
+                    similarity_by_id.get(anime_id, 0.0)
+                    for anime_id in candidate_ids
+                ]
             base_recommendations["uncertainty"] = self._scale_uncertainty(
                 base_recommendations["uncertainty_raw"]
             )
@@ -284,23 +398,38 @@ class HitRateEvaluator:
                     baseline_rows.append(row)
 
             for weight in weights:
-                recommendations = base_recommendations.copy()
-                recommendations["ranking_score"] = (
-                    recommendations["predicted_score"]
-                    - weight * recommendations["uncertainty"]
-                )
-                recommendations = recommendations.sort_values(
-                    "ranking_score",
-                    ascending=False,
-                )
+                for similarity_weight in active_similarity_weights:
+                    recommendations = base_recommendations.copy()
+                    recommendations["ranking_score"] = (
+                        recommendations["predicted_score"]
+                        - weight * recommendations["uncertainty"]
+                    )
+                    if similarity_weight is not None:
+                        recommendations["ranking_score"] += (
+                            similarity_weight
+                            * recommendations["candidate_similarity"]
+                        )
+                    recommendations = recommendations.sort_values(
+                        "ranking_score",
+                        ascending=False,
+                    )
 
-                for row in self._score_top_k(recommendations, top_ks, heldout_ids):
-                    row["run"] = run + 1
-                    row["uncertainty_weight"] = weight
-                    rows.append(row)
+                    for row in self._score_top_k(
+                        recommendations,
+                        top_ks,
+                        heldout_ids,
+                    ):
+                        row["run"] = run + 1
+                        row["uncertainty_weight"] = weight
+                        if similarity_weight is not None:
+                            row["similarity_weight"] = similarity_weight
+                        rows.append(row)
 
         results = pd.DataFrame(rows)
-        summary = self.summarize(results, ["uncertainty_weight", "k"])
+        group_cols = ["uncertainty_weight", "k"]
+        if use_similarity:
+            group_cols = ["uncertainty_weight", "similarity_weight", "k"]
+        summary = self.summarize(results, group_cols)
         best_weights = (
             summary
             .sort_values(

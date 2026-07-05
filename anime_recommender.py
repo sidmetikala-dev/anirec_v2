@@ -24,6 +24,7 @@ class SimilarityRecommender:
         ]
         self.preprocessor = None
         self.vector_columns = None
+        self.candidate_feature_columns = None
         self.anime_df_scaled = None
         self.anime_vectors = None
 
@@ -62,6 +63,7 @@ class SimilarityRecommender:
         )
 
         self.vector_columns = numeric_cols + passthrough_cols + svd_cols
+        self.candidate_feature_columns = passthrough_cols + svd_cols
         self.preprocessor = preprocessor
         scaled_array = preprocessor.fit_transform(anime_df)
         self.anime_df_scaled = pd.DataFrame(
@@ -79,16 +81,20 @@ class SimilarityRecommender:
         if anime_vectors is None:
             raise ValueError("Create anime vectors before creating a user vector.")
 
-        user_anime_vecs = [
-            np.array(anime_vectors[anime_id]) * max(score - baseline_score, 0)
-            for anime_id, score in scores.items()
-            if anime_id in anime_vectors
-        ]
+        total_absolute_weight = 0
+        user_anime_vecs = []
+        for anime_id, score in scores.items():
+            weight = max((score - baseline_score), 0)
+            if weight == 0:
+                continue
+
+            user_anime_vecs.append(np.array(anime_vectors[anime_id]) * weight)
+            total_absolute_weight += abs(weight)
 
         if not user_anime_vecs:
             return np.zeros(len(next(iter(anime_vectors.values()))))
 
-        return np.sum(user_anime_vecs, axis=0)
+        return np.sum(user_anime_vecs, axis=0) / total_absolute_weight
 
     def generate_candidates(self, scores, top_k=400, user_vec=None):
         if self.anime_df_scaled is None:
@@ -146,6 +152,7 @@ class BayesianRidgeRecommender:
         self.anime_data = anime_data
         self.anime_df = anime_df
         self.anime_df_scaled = anime_df_scaled
+        self.recommender = recommender
         self.rated_items = []
         self.rated_ids = set()
         self.clip_predictions = clip_predictions
@@ -289,6 +296,53 @@ class BayesianRidgeRecommender:
             return "Unknown"
         return anime.get("title", "Unknown")
     
+    def _valid_user_score_count(self):
+        if self.user_scores is None:
+            return 0
+
+        return sum(
+            1
+            for score in self.user_scores.values()
+            if score not in (None, 0, "-")
+        )
+
+    def _similarity_recs_for_small_profile(self, top_k, score_count_threshold=100):
+        if (
+            self.user_scores is None
+            or self.recommender is None
+            or self._valid_user_score_count() >= score_count_threshold
+        ):
+            return None
+
+        generated_candidates = self.recommender.generate_candidates(
+            self.user_scores,
+            top_k=top_k,
+        )
+        rows = [
+            {
+                "anime_id": anime_id,
+                "predicted_score": similarity,
+                "uncertainty_raw": 0.0,
+                "uncertainty": 0.0,
+                "ranking_score": similarity,
+            }
+            for anime_id, similarity in generated_candidates
+            if anime_id in self.anime_df_scaled.index
+            and anime_id not in self.rated_ids
+        ]
+        if not rows:
+            return None
+
+        recs = pd.DataFrame(rows)
+        if self.anime_data is None:
+            recs["title"] = "Unknown"
+            return recs
+
+        recs["title"] = recs["anime_id"].apply(
+            lambda anime_id: self._get_title(anime_id, self.anime_data)
+        )
+        return recs
+
     def get_unfiltered_recs(self):
         ranked_df = self.rank_candidates().copy()
 
@@ -302,7 +356,13 @@ class BayesianRidgeRecommender:
         return ranked_df
     
     def get_recs(self, top_k=5, filter_unwatched_prequels=True):
-        recs = self.get_unfiltered_recs()
+        recs = (
+            self._similarity_recs_for_small_profile(top_k)
+            if self._valid_user_score_count() < 100
+            else None
+        )
+        if recs is None:
+            recs = self.get_unfiltered_recs()
 
         def check_prequel(anime_id):
             if self.anime_data is None or self.user_scores is None:

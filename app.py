@@ -1,22 +1,16 @@
-from flask import Flask, jsonify, request
-
-from anime_recommender import BayesianRidgeRecommender
-from anime_recommender import SimilarityRecommender
-from anime_features import AnimeFeatureBuilder
-from anime_data import AnimeDataClient
-from mal_client import MALClient
+from flask import Flask, jsonify
 from dotenv import load_dotenv
-from requests.exceptions import RequestException
+from routes.recommendations import recommendations_py
 
 import psycopg
 import atexit
 import os
 
 load_dotenv()
-client_id = os.getenv("CLIENT_ID")
 database_url = os.getenv("DATABASE_URL_DEV")
 
 app = Flask(__name__)
+app.register_blueprint(recommendations_py, url_prefix="/recs")
 
 #Connect to Postgres
 if not database_url:
@@ -27,6 +21,7 @@ conn = psycopg.connect(
     prepare_threshold=None,
 )
 
+app.config["DB_CONN"] = conn
 
 def close_db_connection():
     if not conn.closed:
@@ -37,48 +32,58 @@ atexit.register(close_db_connection)
 
 with conn.cursor() as cur:
     cur.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                user_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                username VARCHAR(255) NOT NULL UNIQUE,
-                recommendations TEXT[],
-                top_k INTEGER,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );
-""")
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            username VARCHAR(255) NOT NULL UNIQUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    """)
+
     cur.execute("""
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-""")
+        CREATE TABLE IF NOT EXISTS recommendation_runs (
+            run_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+            input_hash TEXT NOT NULL,
+            top_k SMALLINT NOT NULL CONSTRAINT top_k_in_range CHECK (top_k BETWEEN 1 AND 50),
+            uncertainty_weight NUMERIC(5,1) NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (user_id, input_hash, top_k, uncertainty_weight)
+        );
+    """)
+
     cur.execute("""
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
-""")
+        CREATE UNIQUE INDEX IF NOT EXISTS recommendation_runs_cache_idx
+        ON recommendation_runs (
+            user_id,
+            input_hash,
+            top_k,
+            uncertainty_weight,
+            created_at DESC
+        );
+    """)
+
     cur.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS users_username_idx
-            ON users (username);
-""")
+        CREATE TABLE IF NOT EXISTS recommendation_items (
+            run_id BIGINT NOT NULL REFERENCES recommendation_runs(run_id) ON DELETE CASCADE,
+            anime_id BIGINT NOT NULL,
+            title TEXT NOT NULL,
+            rank_position SMALLINT NOT NULL CONSTRAINT rank_pos_in_range CHECK (rank_position BETWEEN 1 AND 50),
+            raw_score REAL NOT NULL,
+            uncertainty REAL NOT NULL,
+            final_score REAL NOT NULL,
+            PRIMARY KEY (run_id, anime_id),
+            UNIQUE (run_id, rank_position)
+        );
+    """)
+
     cur.execute("""
-            ALTER TABLE users ENABLE ROW LEVEL SECURITY
-""")
+        ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE recommendation_runs ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE recommendation_items ENABLE ROW LEVEL SECURITY;
+    """)
 
 conn.commit()
-
-#Initialize all important variables
-if not client_id:
-    raise RuntimeError("CLIENT_ID is not set. Add it to your .env file.")
-
-anime_data_client = AnimeDataClient(client_id)
-anime_data = anime_data_client.get_cache()
-builder = AnimeFeatureBuilder(
-    anime_data,
-    max_tfidf_features=4000,
-    n_svd_components=400
-)
-anime_df = builder.build_features()
-recommender = SimilarityRecommender()
-anime_vectors = recommender.create_anime_vectors(anime_df)
-anime_df_scaled = recommender.anime_df_scaled
 
 #Routes
 @app.route('/')
@@ -87,110 +92,10 @@ def home():
         "status": "ok",
         "message": "AniRec API is running",
         "endpoints": {
-            "health": "/health",
-            "recommendations": "/rec?username=<mal_username>&top_k=5",
+            "health": "/recs/health",
+            "recommendations": "/recs?username=<mal_username>&top_k=5",
         },
     })
-
-@app.route('/health')
-def health():
-    return jsonify({
-        "status": "ok",
-        "cached_anime": len(anime_data),
-        "feature_rows": int(anime_df.shape[0]),
-        "feature_columns": int(anime_df.shape[1]),
-    })
-
-@app.route('/rec', methods=['GET', 'POST'])
-def recommend():
-    data = request.get_json(silent=True) or {}
-    
-    #Get username
-    username = (
-        data.get("username")
-        or request.args.get("username")
-        or ""
-    ).strip()
-    if not username:
-        return jsonify({"error": "Username is required"}), 400
-
-    #Get top_k
-    raw_top_k = data.get("top_k")
-    if raw_top_k is None:
-        raw_top_k = request.args.get("top_k", 5)
-
-    try:
-        top_k = int(raw_top_k)
-    except ValueError:
-        return jsonify({"error": "top_k must be an integer"}), 400
-
-    if top_k < 1 or top_k > 50:
-        return jsonify({"error": "top_k must be between 1 and 50"}), 400
-
-    #Get recs
-    user_client = MALClient(client_id)
-
-    try:
-        user_data = user_client.get_user_data(username)
-        user_scores = user_client.get_scores(user_data)
-
-        if not user_scores:
-            return jsonify({
-                "error": "No completed, scored TV anime found for this user"
-            }), 404
-
-        bayesian_rec = BayesianRidgeRecommender(
-            anime_data_client,
-            uncertainty_weight=20,
-            user_scores=user_scores,
-            anime_data=anime_data,
-            builder=builder,
-            recommender=recommender,
-            anime_df=anime_df,
-            anime_df_scaled=anime_df_scaled,
-            anime_vectors=anime_vectors,
-        )
-        bayesian_rec.fit()
-        recommendations = bayesian_rec.get_recs(top_k=top_k)
-        recs = recommendations["title"].tolist()
-    except RuntimeError as error:
-        return jsonify({"error": str(error)}), 502
-    except RequestException as error:
-        return jsonify({
-            "error": "Could not connect to the MyAnimeList API",
-            "details": str(error),
-        }), 502
-    except ValueError as error:
-        return jsonify({"error": str(error)}), 400
-
-    #Store recommendation request
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO users
-                (username, recommendations, top_k)
-                VALUES
-                (%s, %s, %s)
-                ON CONFLICT (username)
-                DO UPDATE SET
-                    recommendations = EXCLUDED.recommendations,
-                    top_k = EXCLUDED.top_k,
-                    updated_at = NOW()
-            """, (username, recs, top_k))
-        conn.commit()
-    except psycopg.Error as error:
-        conn.rollback()
-        return jsonify({
-            "error": "Recommendations were generated but could not be saved",
-            "details": str(error),
-        }), 500
-
-    return jsonify({
-        "username": username,
-        "top_k": top_k,
-        "recommendations": recs,
-    })
-
 
 if __name__ == "__main__":
     app.run(debug=True, use_reloader=False)
