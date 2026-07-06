@@ -140,6 +140,7 @@ def recommend():
             anime_df=anime_df,
             anime_df_scaled=anime_df_scaled,
             anime_vectors=anime_vectors,
+            retrieve_missing_anime=False,
         )
         bayesian_rec.fit()
         recommendations = bayesian_rec.get_recs(top_k=top_k)

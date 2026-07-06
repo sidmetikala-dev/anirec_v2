@@ -143,6 +143,7 @@ class BayesianRidgeRecommender:
         anime_df_scaled=None,
         anime_vectors=None,
         clip_predictions=False,
+        retrieve_missing_anime=True,
     ):
         self.uncertainty_weight = uncertainty_weight
         self.score_min = score_min
@@ -185,6 +186,7 @@ class BayesianRidgeRecommender:
                     anime_vectors
                     or getattr(recommender, "anime_vectors", None)
                 ),
+                retrieve_missing=retrieve_missing_anime,
             )
 
         self.anime_vectors = anime_vectors

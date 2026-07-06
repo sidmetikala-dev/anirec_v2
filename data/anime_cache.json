@@ -315589,5 +315589,78 @@
       "num_list_users": 107894
     },
     "related_anime": []
+  },
+  "24075": {
+    "id": 24075,
+    "title": "Persona 4 the Golden Animation",
+    "main_picture": {
+      "medium": "https://cdn.myanimelist.net/images/anime/3/63251.webp",
+      "large": "https://cdn.myanimelist.net/images/anime/3/63251l.webp"
+    },
+    "synopsis": "Spring. Far from the city, time flows peacefully in this rural town. As the cherry blossoms scatter in the wind, a young man named Yu Narukami steps off the train at Yasoinaba Station. Yu has come to this town, where his uncle lives, for family reasons; he will be transferring into the local high school, Yasogami High. And so begins his school life... The shopping mall after school. A series of murders taking place in town. The Midnight Channel, airing late at night.... What lies in store for Yu and his friends ‘this time around?\n\n(Source: Aniplex USA)",
+    "mean": 6.65,
+    "popularity": 2374,
+    "genres": [
+      {
+        "id": 2,
+        "name": "Adventure"
+      },
+      {
+        "id": 7,
+        "name": "Mystery"
+      },
+      {
+        "id": 23,
+        "name": "School"
+      },
+      {
+        "id": 24,
+        "name": "Sci-Fi"
+      },
+      {
+        "id": 31,
+        "name": "Super Power"
+      },
+      {
+        "id": 37,
+        "name": "Supernatural"
+      }
+    ],
+    "statistics": {
+      "status": {
+        "watching": "5766",
+        "completed": "57410",
+        "on_hold": "3963",
+        "dropped": "6648",
+        "plan_to_watch": "29185"
+      },
+      "num_list_users": 102972
+    },
+    "related_anime": [
+      {
+        "node": {
+          "id": 10588,
+          "title": "Persona 4 the Animation",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/4/29107.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/4/29107l.jpg"
+          }
+        },
+        "relation_type": "alternative_version",
+        "relation_type_formatted": "Alternative version"
+      },
+      {
+        "node": {
+          "id": 26359,
+          "title": "Persona 4 the Golden Animation: Thank you Mr. Accomplice",
+          "main_picture": {
+            "medium": "https://cdn.myanimelist.net/images/anime/11/68381.jpg",
+            "large": "https://cdn.myanimelist.net/images/anime/11/68381l.jpg"
+          }
+        },
+        "relation_type": "other",
+        "relation_type_formatted": "Other"
+      }
+    ]
   }
 }

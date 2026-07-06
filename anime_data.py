@@ -278,6 +278,7 @@ class AnimeDataClient:
         recommender,
         anime_df=None,
         anime_vectors=None,
+        retrieve_missing=True,
     ):
         anime_vectors = anime_vectors or getattr(recommender, "anime_vectors", None)
         if anime_vectors is None:
@@ -295,7 +296,7 @@ class AnimeDataClient:
             if anime_id not in anime_vectors
         ]
 
-        if missing_rated_ids:
+        if missing_rated_ids and retrieve_missing:
             fetched_anime_data = self.get_anime_data(missing_rated_ids)
             if fetched_anime_data:
                 anime_data.update({
@@ -306,6 +307,11 @@ class AnimeDataClient:
                 builder.anime_data = anime_data
                 anime_df = builder.build_features()
                 anime_vectors = recommender.create_anime_vectors(anime_df)
+        elif missing_rated_ids:
+            print(
+                "Skipping retrieval for "
+                f"{len(missing_rated_ids)} missing rated anime."
+            )
 
         rated_items = [
             (anime_id, anime_vectors[anime_id], score)
