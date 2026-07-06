@@ -42,10 +42,19 @@ async function fetchData() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username }),
         });
-        const data = await response.json();
+        const responseText = await response.text();
+        let data = {};
+        try {
+            data = responseText ? JSON.parse(responseText) : {};
+        } catch {
+            data = {};
+        }
 
         if (!response.ok) {
-            throw new Error(data.error || "Could not fetch recommendations.");
+            throw new Error(
+                data.error
+                || "The recommendation service timed out. Please try again."
+            );
         }
 
         renderRecommendations(data.recommendations || []);

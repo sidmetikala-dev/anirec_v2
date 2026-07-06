@@ -40,7 +40,13 @@ class AnimeDataClient:
     def _get_page(self, url, params=None):
         response = requests.get(url, headers=self.headers, params=params, timeout=15)
         if response.status_code != 200:
-            raise RuntimeError(f"Error {response.status_code}: {response.text}")
+            if response.status_code >= 500:
+                raise RuntimeError(
+                    "MyAnimeList is temporarily unavailable. Please try again."
+                )
+            raise RuntimeError(
+                f"MyAnimeList request failed with status {response.status_code}."
+            )
         return response.json()
 
     def _get_uncached_ranked_anime_ids(self, ranking_type, total=1000, page_limit=500):
@@ -108,7 +114,19 @@ class AnimeDataClient:
             return anime_id, None, str(error)
 
         if response.status_code != 200:
-            return anime_id, None, f"{response.status_code}: {response.text}"
+            if response.status_code == 404:
+                return anime_id, None, "Anime not found on MyAnimeList."
+            if response.status_code >= 500:
+                return (
+                    anime_id,
+                    None,
+                    "MyAnimeList is temporarily unavailable. Please try again.",
+                )
+            return (
+                anime_id,
+                None,
+                f"MyAnimeList request failed with status {response.status_code}.",
+            )
 
         return anime_id, response.json(), None
 

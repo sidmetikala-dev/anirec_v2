@@ -306,6 +306,10 @@ class BayesianRidgeRecommender:
             if score not in (None, 0, "-")
         )
 
+    def _ensure_user_has_scores(self):
+        if self._valid_user_score_count() == 0:
+            raise ValueError("Need at least one watched and scored anime.")
+
     def _similarity_recs_for_small_profile(self, top_k, score_count_threshold=100):
         if (
             self.user_scores is None
@@ -344,6 +348,7 @@ class BayesianRidgeRecommender:
         return recs
 
     def get_unfiltered_recs(self):
+        self._ensure_user_has_scores()
         ranked_df = self.rank_candidates().copy()
 
         if self.anime_data is None:
@@ -356,6 +361,7 @@ class BayesianRidgeRecommender:
         return ranked_df
     
     def get_recs(self, top_k=5, filter_unwatched_prequels=True):
+        self._ensure_user_has_scores()
         recs = (
             self._similarity_recs_for_small_profile(top_k)
             if self._valid_user_score_count() < 100

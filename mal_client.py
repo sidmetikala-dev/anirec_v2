@@ -14,7 +14,21 @@ class MALClient:
     def _get_page(self, url, params=None):
         response = requests.get(url, headers=self.headers, params=params, timeout=15)
         if response.status_code != 200:
-            raise RuntimeError(f"Error {response.status_code}: {response.text}")
+            if response.status_code == 404:
+                raise ValueError(
+                    "MyAnimeList user not found. Check the username and try again."
+                )
+            if response.status_code in (401, 403):
+                raise RuntimeError(
+                    "Could not access MyAnimeList. Check the MAL client ID."
+                )
+            if response.status_code >= 500:
+                raise RuntimeError(
+                    "MyAnimeList is temporarily unavailable. Please try again."
+                )
+            raise RuntimeError(
+                f"MyAnimeList request failed with status {response.status_code}."
+            )
         return response.json()
 
     def get_user_data(self, username):
