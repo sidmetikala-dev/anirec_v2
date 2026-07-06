@@ -16,7 +16,7 @@ class AnimeDataClient:
         "recommendations,studios,statistics,main_picture,related_anime"
     )
 
-    def __init__(self, client_id, cache_file="anime_cache.json", caching_mode=True):
+    def __init__(self, client_id, cache_file="data/anime_cache.json", caching_mode=True):
         self.cache_path = Path(cache_file)
         self.headers = {
             "X-MAL-CLIENT-ID": client_id
