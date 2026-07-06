@@ -1,5 +1,7 @@
 # AniRec v2
 
+[Live Demo](https://anirec-app.vercel.app)
+
 AniRec v2 is a personalized anime recommendation system built with MyAnimeList data. The project focuses on turning user rating history and cached anime metadata into personalized recommendations through feature engineering, model evaluation, and backend deployment.
 
 ## Goals
