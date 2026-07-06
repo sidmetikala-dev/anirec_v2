@@ -360,7 +360,7 @@ class BayesianRidgeRecommender:
         )
         return ranked_df
     
-    def get_recs(self, top_k=5, filter_unwatched_prequels=True):
+    def get_recs(self, top_k=5, filter_prequels=True):
         self._ensure_user_has_scores()
         recs = (
             self._similarity_recs_for_small_profile(top_k)
@@ -386,9 +386,10 @@ class BayesianRidgeRecommender:
             if not prequel_ids:
                 return True
 
-            return all(prequel_id in self.user_scores for prequel_id in prequel_ids)
+            return all(prequel_id in self.user_scores and 
+                       self.user_scores[prequel_id] >= 7 for prequel_id in prequel_ids)
 
-        if not filter_unwatched_prequels:
+        if not filter_prequels:
             return recs.head(top_k).reset_index(drop=True)
 
         valid_indices = []
