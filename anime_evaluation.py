@@ -470,6 +470,23 @@ class HitRateEvaluator:
 
         return results, summary, best_weights, baseline_results, baseline_summary
 
+    def _sample_compare_split(self, random_state=None):
+        return self._sample_split(random_state=random_state)
+
+    def _build_compare_recommendations(self, candidate_ids, target_eval):
+        return pd.DataFrame({
+            "anime_id": candidate_ids,
+            "is_hidden_like": pd.Series(candidate_ids)
+            .isin(target_eval)
+            .to_numpy(),
+        })
+
+    def _score_compare_top_k(self, recommendations, top_ks, target_eval):
+        return self._score_top_k(recommendations, top_ks, target_eval)
+
+    def _summarize_compare_results(self, results):
+        return self.summarize(results, ["model", "k"])
+
     def compare_models(
         self,
         uncertainty_weight=8.5,
@@ -530,7 +547,7 @@ class HitRateEvaluator:
 
         for run in range(n_runs):
             split_seed = None if random_state is None else int(rng.integers(0, 2**32 - 1))
-            train_eval, train_ids, candidate_ids, heldout_ids = self._sample_split(
+            train_eval, train_ids, candidate_ids, target_eval = self._sample_compare_split(
                 random_state=split_seed
             )
 
@@ -619,13 +636,11 @@ class HitRateEvaluator:
                     clip_predictions=clip_predictions,
                 )
 
-            run_recommendations = pd.DataFrame({
-                "anime_id": candidate_ids,
-                "is_hidden_like": pd.Series(candidate_ids)
-                .isin(heldout_ids)
-                .to_numpy(),
-                "bayesian_ridge": bayes_score,
-            })
+            run_recommendations = self._build_compare_recommendations(
+                candidate_ids,
+                target_eval,
+            )
+            run_recommendations["bayesian_ridge"] = bayes_score
 
             model_names = ["bayesian_ridge"]
             if include_ridge_cv:
@@ -644,20 +659,18 @@ class HitRateEvaluator:
                 run_recommendations["elastic_net_cv"] = elastic_score
                 model_names.append("elastic_net_cv")
             if self.anime_df is not None and "mean" in self.anime_df.columns:
-                run_recommendations["global_mean"] = self.anime_df.loc[
-                    candidate_ids,
-                    "mean",
-                ].to_numpy()
+                run_recommendations["global_mean"] = self.anime_df["mean"].reindex(
+                    run_recommendations["anime_id"],
+                ).to_numpy()
                 if include_hybrid_model:
                     run_recommendations["hybrid_model"] = (
                         hybrid_global_weight * run_recommendations["global_mean"]
                         + hybrid_bayesian_weight * run_recommendations["bayesian_ridge"]
                     )
                 if "num_scoring_users" in self.anime_df.columns:
-                    run_recommendations["num_scoring_users"] = self.anime_df.loc[
-                        candidate_ids,
-                        "num_scoring_users",
-                    ].to_numpy()
+                    run_recommendations["num_scoring_users"] = self.anime_df[
+                        "num_scoring_users"
+                    ].reindex(run_recommendations["anime_id"]).to_numpy()
                 if include_hybrid_model:
                     model_names.append("hybrid_model")
                 model_names.append("global_mean")
@@ -673,7 +686,11 @@ class HitRateEvaluator:
                         model_name,
                         ascending=False,
                     )
-                for row in self._score_top_k(recommendations, top_ks, heldout_ids):
+                for row in self._score_compare_top_k(
+                    recommendations,
+                    top_ks,
+                    target_eval,
+                ):
                     row["run"] = run + 1
                     row["model"] = model_name
                     row["ridge_alpha"] = (
@@ -704,7 +721,7 @@ class HitRateEvaluator:
                     rows.append(row)
 
         results = pd.DataFrame(rows)
-        summary = self.summarize(results, ["model", "k"])
+        summary = self._summarize_compare_results(results)
         return results, summary
 
     def tune_hybrid_weights(
@@ -940,6 +957,7 @@ class RankingMetricEvaluator(HitRateEvaluator):
                     k,
                 ),
                 "mrr_at_k": self.mrr_at_k(ranked_relevance, k),
+                "precision_at_k": int(np.sum(top_k_relevance > 0)) / k,
                 "relevant_hits_at_k": int(np.sum(top_k_relevance > 0)),
                 "strong_hits_at_k": int(np.sum(top_k_relevance == 2)),
                 "test_relevant": int(np.sum(ideal_relevance > 0)),
@@ -956,6 +974,8 @@ class RankingMetricEvaluator(HitRateEvaluator):
             .agg(
                 avg_ndcg_at_k=("ndcg_at_k", "mean"),
                 std_ndcg_at_k=("ndcg_at_k", "std"),
+                avg_precision_at_k=("precision_at_k", "mean"),
+                std_precision_at_k=("precision_at_k", "std"),
                 avg_mrr_at_k=("mrr_at_k", "mean"),
                 std_mrr_at_k=("mrr_at_k", "std"),
                 avg_relevant_hits_at_k=("relevant_hits_at_k", "mean"),
@@ -1055,6 +1075,26 @@ class RankingMetricEvaluator(HitRateEvaluator):
                 rows.append(row)
 
         return pd.DataFrame(rows)
+
+    def _sample_compare_split(self, random_state=None):
+        return self._sample_ranking_split(random_state=random_state)
+
+    def _build_compare_recommendations(self, candidate_ids, target_eval):
+        relevance_by_id = target_eval.set_index("anime_id")["relevance"].to_dict()
+        return pd.DataFrame({
+            "anime_id": candidate_ids,
+            "relevance": pd.Series(candidate_ids)
+            .map(relevance_by_id)
+            .fillna(0)
+            .astype(int)
+            .to_numpy(),
+        })
+
+    def _score_compare_top_k(self, recommendations, top_ks, target_eval):
+        return self._score_ranking_top_k(recommendations, top_ks, target_eval)
+
+    def _summarize_compare_results(self, results):
+        return self.summarize_ranking(results, ["model", "k"])
 
     def tune_bayesian_uncertainty_ranking(
         self,

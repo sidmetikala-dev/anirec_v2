@@ -290,10 +290,16 @@ class AnimeDataClient:
             if score not in (None, 0, "-")
         }
 
+        available_rated_ids = set(anime_vectors)
+        if anime_df is not None:
+            available_rated_ids &= set(anime_df.index)
+        if getattr(recommender, "anime_df_scaled", None) is not None:
+            available_rated_ids &= set(recommender.anime_df_scaled.index)
+
         missing_rated_ids = [
             anime_id
             for anime_id in valid_user_scores
-            if anime_id not in anime_vectors
+            if anime_id not in available_rated_ids
         ]
 
         if missing_rated_ids and retrieve_missing:
