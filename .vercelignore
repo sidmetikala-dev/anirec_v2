@@ -1,0 +1,6 @@
+data/*.csv
+data/*.parquet
+data/UserAnimeList.csv
+data/UserList.csv
+notebooks/*.ipynb
+metrics/
