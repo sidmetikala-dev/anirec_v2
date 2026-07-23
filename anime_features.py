@@ -128,6 +128,7 @@ class AnimeFeatureBuilder:
             )
             synopsis_tfidf = self.tfidf.fit_transform(anime_synopsis_df["synopsis"])
         else:
+            if not fit_tfidf: return (None, None)
             if self.tfidf is None:
                 raise ValueError(
                     "Call build_features with fit_tfidf=True before reusing TF-IDF."
@@ -158,6 +159,7 @@ class AnimeFeatureBuilder:
                 for i in range(n_components)
             ]
         else:
+            if not fit_svd: return None
             if self.svd is None or self.synopsis_svd_columns is None:
                 raise ValueError(
                     "Call build_features with fit_svd=True before reusing SVD."
@@ -190,10 +192,14 @@ class AnimeFeatureBuilder:
             anime_ids,
             fit_svd=fit_svd,
         )
-
-        anime_df = pd.concat([anime_df_num.set_index("id"), 
-                              anime_genres_df.set_index("anime_id"), 
-                              synopsis_svd_df], axis=1)
+        if fit_tfidf and fit_svd:
+            anime_df = pd.concat([anime_df_num.set_index("id"), 
+                                anime_genres_df.set_index("anime_id"), 
+                                synopsis_svd_df], axis=1)
+        else:
+            anime_df = pd.concat([anime_df_num.set_index("id"), 
+                                anime_genres_df.set_index("anime_id")], 
+                                axis=1)
 
         return anime_df.dropna()
 

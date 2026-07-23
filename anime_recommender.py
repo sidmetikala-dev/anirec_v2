@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import BayesianRidge
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import StandardScaler
@@ -126,7 +127,6 @@ class SimilarityRecommender:
         candidate_idx = candidate_idx[np.argsort(cosine_sims[candidate_idx])[::-1]]
 
         return list(zip(anime_ids[candidate_idx].tolist(), cosine_sims[candidate_idx].tolist()))
-
 
 class BayesianRidgeRecommender:
     def __init__(
@@ -402,3 +402,173 @@ class BayesianRidgeRecommender:
                 valid_indices.append(index)
 
         return recs.loc[valid_indices].reset_index(drop=True)
+
+class KNNRegressor(BayesianRidgeRecommender):
+    def __init__(
+            self, 
+            anime_data_client=None,
+            score_min=1,
+            score_max=10,
+            user_scores=None,
+            anime_data=None,
+            builder=None,
+            recommender=None,
+            anime_df=None,
+            anime_df_scaled=None,
+            anime_vectors=None,
+            clip_predictions=False,
+            retrieve_missing_anime=True,
+            max_n_neighbors=1000
+    ):
+        self.score_min = score_min
+        self.score_max = score_max
+        self.model = KNeighborsRegressor()
+        self.user_scores = user_scores
+        self.anime_data = anime_data
+        self.anime_df = anime_df
+        self.anime_df_scaled = anime_df_scaled
+        self.recommender = recommender
+        self.rated_items = []
+        self.rated_ids = set()
+        self.clip_predictions = clip_predictions
+        self.max_n_neighbors = max_n_neighbors
+
+        if anime_data_client is not None:
+            if (
+                user_scores is None
+                or anime_data is None
+                or builder is None
+                or recommender is None
+            ):
+                raise ValueError(
+                    "user_scores, anime_data, builder, and recommender are "
+                    "required when anime_data_client is provided."
+                )
+
+            (
+                self.rated_items,
+                self.anime_df,
+                anime_vectors,
+                self.anime_df_scaled,
+                _,
+            ) = anime_data_client.get_rated_items(
+                user_scores=user_scores,
+                anime_data=anime_data,
+                builder=builder,
+                recommender=recommender,
+                anime_df=anime_df,
+                anime_vectors=(
+                    anime_vectors
+                    or getattr(recommender, "anime_vectors", None)
+                ),
+                retrieve_missing=retrieve_missing_anime,
+            )
+
+        self.anime_vectors = anime_vectors
+        if self.anime_df_scaled is None and recommender is not None:
+            self.anime_df_scaled = getattr(recommender, "anime_df_scaled", None)
+
+        if not self.rated_items and self.user_scores is not None:
+            self.rated_items = self._build_rated_items(self.user_scores)
+
+    def fit(self):
+        if self.anime_df_scaled is None:
+            raise ValueError("anime_df_scaled is required to fit the reranker.")
+
+        if not self.rated_items:
+            raise ValueError("Need at least one scored anime to fit the reranker.")
+
+        n_neighbors = (
+            len(self.rated_items)
+            if self.max_n_neighbors is None
+            else min(self.max_n_neighbors, len(self.rated_items))
+        )
+        
+        self.model.set_params(
+            n_neighbors=n_neighbors,
+            weights="distance",
+            metric="cosine",
+        )
+
+        user_anime_ids = [anime_id for anime_id, _, _ in self.rated_items]
+        user_anime_scores = np.array([score for _, _, score in self.rated_items])
+        user_anime_vectors = self.anime_df_scaled.loc[user_anime_ids].to_numpy()
+
+        self.rated_ids = set(user_anime_ids)
+        self.model.fit(user_anime_vectors, user_anime_scores)
+        return self
+
+    def predict(self, anime_ids):
+        if self.anime_df_scaled is None:
+            raise ValueError("Fit the reranker before predicting.")
+
+        candidates = self.anime_df_scaled.loc[anime_ids].to_numpy()
+        predicted_score = self.model.predict(candidates)
+        
+        if self.clip_predictions:
+            predicted_score = np.clip(predicted_score, self.score_min, self.score_max)
+        return predicted_score
+
+    def rank_candidates(
+        self,
+        candidate_ids=None,
+        uncertainty_weight=None,
+    ):
+        if self.anime_df_scaled is None:
+            raise ValueError("Fit the reranker before ranking candidates.")
+
+        if candidate_ids is None:
+            candidate_ids = [
+                anime_id
+                for anime_id in self.anime_df_scaled.index
+                if anime_id not in self.rated_ids
+            ]
+
+        predicted_score = self.predict(candidate_ids)
+
+        recommendations = pd.DataFrame({
+            "anime_id": candidate_ids,
+            "predicted_score": predicted_score,
+        })
+
+        return recommendations.sort_values(
+            ["predicted_score", "anime_id"],
+            ascending=[False, True],
+            kind="mergesort",
+        )
+
+    def get_recs(self, top_k=5, filter_prequels=True):
+        self._ensure_user_has_scores()
+        recs = self.get_unfiltered_recs()
+
+        def check_prequel(anime_id):
+            if self.anime_data is None or self.user_scores is None:
+                return True
+
+            anime = self.anime_data.get(str(anime_id), {})
+            related_animes = anime.get("related_anime", [])
+
+            prequel_ids = [
+                related_anime["node"]["id"]
+                for related_anime in related_animes
+                if related_anime.get("relation_type") == "prequel"
+            ]
+
+            if not prequel_ids:
+                return True
+
+            return all(prequel_id in self.user_scores and 
+                       self.user_scores[prequel_id] >= 7 for prequel_id in prequel_ids)
+
+        if not filter_prequels:
+            return recs.head(top_k).reset_index(drop=True)
+
+        valid_indices = []
+        for index, row in recs.iterrows():
+            if len(valid_indices) >= top_k:
+                break
+            if check_prequel(row["anime_id"]):
+                valid_indices.append(index)
+
+        return recs.loc[valid_indices].reset_index(drop=True)
+    

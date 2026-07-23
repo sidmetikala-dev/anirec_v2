@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, jsonify, request
 
-from anime_recommender import BayesianRidgeRecommender
+from anime_recommender import KNNRegressor
 from anime_recommender import SimilarityRecommender
 from anime_features import AnimeFeatureBuilder
 from anime_data import AnimeDataClient
@@ -73,7 +73,9 @@ def recommend():
 
     #Get recs
     conn = current_app.config["DB_CONN"]
-    uncertainty_weight = 20
+    model_type = "knn"
+    model_name = "knn_all_available"
+    max_n_neighbors = None
     user_client = MALClient(client_id)
 
     try:
@@ -86,7 +88,13 @@ def recommend():
             }), 404
 
         #Generate input_hash
-        input_string = json.dumps(user_scores, sort_keys=True)
+        input_payload = {
+            "model_type": model_type,
+            "model_name": model_name,
+            "max_n_neighbors": max_n_neighbors,
+            "user_scores": user_scores,
+        }
+        input_string = json.dumps(input_payload, sort_keys=True)
         input_hash = hashlib.md5(input_string.encode('utf-8')).hexdigest()
 
         # Check if we already have an identical saved run
@@ -99,8 +107,9 @@ def recommend():
                         ON u.user_id = rr.user_id
                     WHERE u.username = %s
                       AND rr.input_hash = %s
+                      AND rr.model_type = %s
+                      AND rr.model_name = %s
                       AND rr.top_k = %s
-                      AND rr.uncertainty_weight = %s
                     ORDER BY rr.created_at DESC
                     LIMIT 1
                 )
@@ -115,8 +124,9 @@ def recommend():
             """, (
                 username,
                 input_hash,
+                model_type,
+                model_name,
                 top_k,
-                uncertainty_weight,
             ))
             existing_rows = cur.fetchall()
 
@@ -125,14 +135,15 @@ def recommend():
             return jsonify({
                 "username": username,
                 "top_k": top_k,
+                "model_type": model_type,
+                "model": model_name,
                 "recommendations": recs,
                 "cached": True,
             })
 
         #Generate fresh recs
-        bayesian_rec = BayesianRidgeRecommender(
+        knn_recs = KNNRegressor(
             anime_data_client,
-            uncertainty_weight=uncertainty_weight,
             user_scores=user_scores,
             anime_data=anime_data,
             builder=builder,
@@ -141,9 +152,10 @@ def recommend():
             anime_df_scaled=anime_df_scaled,
             anime_vectors=anime_vectors,
             retrieve_missing_anime=False,
+            max_n_neighbors=max_n_neighbors,
         )
-        bayesian_rec.fit()
-        recommendations = bayesian_rec.get_recs(top_k=top_k)
+        knn_recs.fit()
+        recommendations = knn_recs.get_recs(top_k=top_k)
         recs = recommendations["title"].tolist()
     except RuntimeError as error:
         return jsonify({"error": str(error)}), 502
@@ -168,8 +180,14 @@ def recommend():
                     RETURNING user_id
                 ),
                 add_run AS (
-                    INSERT INTO recommendation_runs (user_id, input_hash, top_k, uncertainty_weight)
-                    SELECT user_id, %s, %s, %s
+                    INSERT INTO recommendation_runs (
+                        user_id,
+                        input_hash,
+                        model_type,
+                        model_name,
+                        top_k
+                    )
+                    SELECT user_id, %s, %s, %s, %s
                     FROM add_user
                     RETURNING run_id
                 )
@@ -178,38 +196,31 @@ def recommend():
                     anime_id,
                     title,
                     rank_position,
-                    raw_score,
-                    uncertainty,
-                    final_score
+                    predicted_score
                 )
                 SELECT
                     add_run.run_id,
                     x.anime_id,
                     x.title,
                     x.rank_position,
-                    x.raw_score,
-                    x.uncertainty,
-                    x.final_score
+                    x.predicted_score
                 FROM add_run,
                 UNNEST(
                     %s::bigint[],
                     %s::text[],
                     %s::smallint[],
-                    %s::real[],
-                    %s::real[],
                     %s::real[]
-                ) AS x(anime_id, title, rank_position, raw_score, uncertainty, final_score)
+                ) AS x(anime_id, title, rank_position, predicted_score)
             """, (
                 username,
                 input_hash,
+                model_type,
+                model_name,
                 top_k,
-                uncertainty_weight,
                 recommendations["anime_id"].tolist(),
                 recommendations["title"].tolist(),
                 rank_positions,
                 recommendations["predicted_score"].tolist(),
-                recommendations["uncertainty"].tolist(),
-                recommendations["ranking_score"].tolist(),
             ))
         conn.commit()
     except psycopg.Error as error:
@@ -222,5 +233,7 @@ def recommend():
     return jsonify({
         "username": username,
         "top_k": top_k,
+        "model_type": model_type,
+        "model": model_name,
         "recommendations": recs,
     })
