@@ -30,7 +30,7 @@ builder = AnimeFeatureBuilder(
     max_tfidf_features=4000,
     n_svd_components=400
 )
-anime_df = builder.build_features()
+anime_df = builder.build_features(fit_svd=False, fit_tfidf=False)
 recommender = SimilarityRecommender()
 anime_vectors = recommender.create_anime_vectors(anime_df)
 anime_df_scaled = recommender.anime_df_scaled
@@ -72,7 +72,7 @@ def recommend():
         return jsonify({"error": "top_k must be between 1 and 50"}), 400
 
     #Get recs
-    conn = current_app.config["DB_CONN"]
+    pool = current_app.config["DB_POOL"]
     model_type = "knn"
     model_name = "knn_all_available"
     max_n_neighbors = None
@@ -98,37 +98,38 @@ def recommend():
         input_hash = hashlib.md5(input_string.encode('utf-8')).hexdigest()
 
         # Check if we already have an identical saved run
-        with conn.cursor() as cur:
-            cur.execute("""
-                WITH latest_run AS (
-                    SELECT rr.run_id
-                    FROM users u
-                    JOIN recommendation_runs rr
-                        ON u.user_id = rr.user_id
-                    WHERE u.username = %s
-                      AND rr.input_hash = %s
-                      AND rr.model_type = %s
-                      AND rr.model_name = %s
-                      AND rr.top_k = %s
-                    ORDER BY rr.created_at DESC
-                    LIMIT 1
-                )
-                SELECT
-                    latest_run.run_id,
-                    ri.title,
-                    ri.rank_position
-                FROM latest_run
-                JOIN recommendation_items ri
-                    ON latest_run.run_id = ri.run_id
-                ORDER BY ri.rank_position ASC
-            """, (
-                username,
-                input_hash,
-                model_type,
-                model_name,
-                top_k,
-            ))
-            existing_rows = cur.fetchall()
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    WITH latest_run AS (
+                        SELECT rr.run_id
+                        FROM users u
+                        JOIN recommendation_runs rr
+                            ON u.user_id = rr.user_id
+                        WHERE u.username = %s
+                        AND rr.input_hash = %s
+                        AND rr.model_type = %s
+                        AND rr.model_name = %s
+                        AND rr.top_k = %s
+                        ORDER BY rr.created_at DESC
+                        LIMIT 1
+                    )
+                    SELECT
+                        latest_run.run_id,
+                        ri.title,
+                        ri.rank_position
+                    FROM latest_run
+                    JOIN recommendation_items ri
+                        ON latest_run.run_id = ri.run_id
+                    ORDER BY ri.rank_position ASC
+                """, (
+                    username,
+                    input_hash,
+                    model_type,
+                    model_name,
+                    top_k,
+                ))
+                existing_rows = cur.fetchall()
 
         if existing_rows:
             recs = [row[1] for row in existing_rows]
@@ -170,61 +171,70 @@ def recommend():
     #Store recommendation request
     try:
         rank_positions = list(range(1, len(recommendations) + 1))
-        with conn.cursor() as cur:
-            cur.execute("""
-                WITH add_user AS (
-                    INSERT INTO users (username)
-                    VALUES (%s)
-                    ON CONFLICT (username)
-                    DO UPDATE SET updated_at = NOW()
-                    RETURNING user_id
-                ),
-                add_run AS (
-                    INSERT INTO recommendation_runs (
-                        user_id,
-                        input_hash,
-                        model_type,
-                        model_name,
-                        top_k
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    WITH add_user AS (
+                        INSERT INTO users (username)
+                        VALUES (%s)
+                        ON CONFLICT (username)
+                        DO UPDATE SET updated_at = NOW()
+                        RETURNING user_id
+                    ),
+                    add_run AS (
+                        INSERT INTO recommendation_runs (
+                            user_id,
+                            input_hash,
+                            model_type,
+                            model_name,
+                            top_k
+                        )
+                        SELECT user_id, %s, %s, %s, %s
+                        FROM add_user
+                        ON CONFLICT (
+                            user_id,
+                            input_hash,
+                            model_type,
+                            model_name,
+                            top_k
+                        )
+                        DO UPDATE SET created_at = recommendation_runs.created_at
+                        RETURNING run_id
                     )
-                    SELECT user_id, %s, %s, %s, %s
-                    FROM add_user
-                    RETURNING run_id
-                )
-                INSERT INTO recommendation_items (
-                    run_id,
-                    anime_id,
-                    title,
-                    rank_position,
-                    predicted_score
-                )
-                SELECT
-                    add_run.run_id,
-                    x.anime_id,
-                    x.title,
-                    x.rank_position,
-                    x.predicted_score
-                FROM add_run,
-                UNNEST(
-                    %s::bigint[],
-                    %s::text[],
-                    %s::smallint[],
-                    %s::real[]
-                ) AS x(anime_id, title, rank_position, predicted_score)
-            """, (
-                username,
-                input_hash,
-                model_type,
-                model_name,
-                top_k,
-                recommendations["anime_id"].tolist(),
-                recommendations["title"].tolist(),
-                rank_positions,
-                recommendations["predicted_score"].tolist(),
-            ))
-        conn.commit()
+                    INSERT INTO recommendation_items (
+                        run_id,
+                        anime_id,
+                        title,
+                        rank_position,
+                        predicted_score
+                    )
+                    SELECT
+                        add_run.run_id,
+                        x.anime_id,
+                        x.title,
+                        x.rank_position,
+                        x.predicted_score
+                    FROM add_run,
+                    UNNEST(
+                        %s::bigint[],
+                        %s::text[],
+                        %s::smallint[],
+                        %s::real[]
+                    ) AS x(anime_id, title, rank_position, predicted_score)
+                    ON CONFLICT DO NOTHING
+                """, (
+                    username,
+                    input_hash,
+                    model_type,
+                    model_name,
+                    top_k,
+                    recommendations["anime_id"].tolist(),
+                    recommendations["title"].tolist(),
+                    rank_positions,
+                    recommendations["predicted_score"].tolist(),
+                ))
+            
     except psycopg.Error as error:
-        conn.rollback()
         return jsonify({
             "error": "Recommendations were generated but could not be saved",
             "details": str(error),

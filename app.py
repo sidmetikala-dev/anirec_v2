@@ -2,8 +2,7 @@ from flask import Flask, jsonify, render_template
 from dotenv import load_dotenv
 from routes.recommendations import recommendations_py
 
-import psycopg
-import atexit
+from psycopg_pool import ConnectionPool
 import os
 
 load_dotenv()
@@ -16,31 +15,33 @@ app.register_blueprint(recommendations_py, url_prefix="/recs")
 if not database_url:
     raise RuntimeError("DATABASE_URL is not set. Add it to your .env file.")
 
-conn = psycopg.connect(
-    database_url,
-    prepare_threshold=None,
+pool = ConnectionPool(
+    conninfo=database_url,
+    min_size=1,       # Keep 1 connection open for instant response on warm starts
+    max_size=4,       # Allow scaling up to 4 concurrent paths per container instance
+    max_idle=5.0,     # If a connection sits idle for 5s, close it (prevents frozen socket errors)
+    timeout=5.0,      # If all connections are busy, wait a max of 5s before throwing an error
+    kwargs={
+        "autocommit": True,         # Required for transaction pooling
+        "prepare_threshold": None,  # Required: Disables prepared statements
+        "connect_timeout": 5        # Network timeout for establishing new sockets
+    }
 )
 
-app.config["DB_CONN"] = conn
+app.config["DB_POOL"] = pool
 
-def close_db_connection():
-    if not conn.closed:
-        conn.close()
-
-
-atexit.register(close_db_connection)
-
-with conn.cursor() as cur:
-    cur.execute("""
+with pool.connection() as conn:
+    with conn.cursor() as cur:
+        cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             username VARCHAR(255) NOT NULL UNIQUE,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
-    """)
-
-    cur.execute("""
+        """)
+        
+        cur.execute("""
         CREATE TABLE IF NOT EXISTS recommendation_runs (
             run_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -51,21 +52,15 @@ with conn.cursor() as cur:
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             UNIQUE (user_id, input_hash, model_type, model_name, top_k)
         );
-    """)
-
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS recommendation_runs_cache_idx
-        ON recommendation_runs (
-            user_id,
-            input_hash,
-            model_type,
-            model_name,
-            top_k,
-            created_at DESC
+        """)
+        
+        cur.execute("""
+        CREATE INDEX IF NOT EXISTS recommendation_runs_cache_idx ON recommendation_runs (
+            user_id, input_hash, model_type, model_name, top_k, created_at DESC
         );
-    """)
-
-    cur.execute("""
+        """)
+        
+        cur.execute("""
         CREATE TABLE IF NOT EXISTS recommendation_items (
             run_id BIGINT NOT NULL REFERENCES recommendation_runs(run_id) ON DELETE CASCADE,
             anime_id BIGINT NOT NULL,
@@ -75,15 +70,14 @@ with conn.cursor() as cur:
             PRIMARY KEY (run_id, anime_id),
             UNIQUE (run_id, rank_position)
         );
-    """)
-
-    cur.execute("""
+        """)
+        
+        cur.execute("""
         ALTER TABLE users ENABLE ROW LEVEL SECURITY;
         ALTER TABLE recommendation_runs ENABLE ROW LEVEL SECURITY;
         ALTER TABLE recommendation_items ENABLE ROW LEVEL SECURITY;
-    """)
-
-conn.commit()
+        """)
+        
 
 #Routes
 @app.route('/')
