@@ -12,6 +12,7 @@ import hashlib
 import json
 import psycopg
 import os
+import time
 
 load_dotenv()
 
@@ -98,6 +99,10 @@ def recommend():
         input_hash = hashlib.md5(input_string.encode('utf-8')).hexdigest()
 
         # Check if we already have an identical saved run
+        current_app.logger.info(
+            "Cache pipeline started for username=%s", username
+        )
+        cache_pipeline_start = time.perf_counter()
         with pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -133,6 +138,14 @@ def recommend():
 
         if existing_rows:
             recs = [row[1] for row in existing_rows]
+            cache_pipeline_ms = (
+                time.perf_counter() - cache_pipeline_start
+            ) * 1_000
+            current_app.logger.info(
+                "Cache hit for username=%s completed in %.3f ms",
+                username,
+                cache_pipeline_ms,
+            )
             return jsonify({
                 "username": username,
                 "top_k": top_k,
@@ -140,6 +153,7 @@ def recommend():
                 "model": model_name,
                 "recommendations": recs,
                 "cached": True,
+                "cache_pipeline_ms": round(cache_pipeline_ms, 3),
             })
 
         #Generate fresh recs
@@ -240,10 +254,20 @@ def recommend():
             "details": str(error),
         }), 500
 
+    cache_pipeline_ms = (
+        time.perf_counter() - cache_pipeline_start
+    ) * 1_000
+    current_app.logger.info(
+        "Cache miss for username=%s completed in %.3f ms",
+        username,
+        cache_pipeline_ms,
+    )
     return jsonify({
         "username": username,
         "top_k": top_k,
         "model_type": model_type,
         "model": model_name,
         "recommendations": recs,
+        "cached": False,
+        "cache_pipeline_ms": round(cache_pipeline_ms, 3),
     })
