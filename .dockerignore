@@ -1,0 +1,35 @@
+# Local virtual environments
+.venv
+venv
+ENV
+
+# Version control and hosting configs
+.git
+.gitignore
+.vercelignore
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local environment variables (Contains secrets!)
+.env
+
+# Project documentation
+README.md
+
+# Large or local data folders
+data/
+!data/anime_cache.json
+
+# Experimental code and metrics
+*notebook*.ipynb
+*.ipynb
+notebooks/
+notebooks_two_tower/
+metrics/
+benchmarks/
+anime_evaluation.py
+

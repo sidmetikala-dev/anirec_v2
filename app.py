@@ -24,8 +24,9 @@ pool = ConnectionPool(
     kwargs={
         "autocommit": True,         # Required for transaction pooling
         "prepare_threshold": None,  # Required: Disables prepared statements
-        "connect_timeout": 5        # Network timeout for establishing new sockets
-    }
+        "connect_timeout": 5,       # Network timeout for establishing new sockets
+        "sslmode" : "require"     
+    }   
 )
 
 app.config["DB_POOL"] = pool
@@ -85,4 +86,6 @@ def home():
     return render_template("index.html")
 
 if __name__ == "__main__":
-    app.run(debug=True, use_reloader=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, 
+            debug=False, use_reloader=False)
