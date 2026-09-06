@@ -19,11 +19,6 @@ anime_evaluation.py
 #Git
 .git/
 .gitignore
-.gcloudignore
-
-# Docker configuration
-Dockerfile
-.dockerignore
 
 #Ignore secret files
 .env

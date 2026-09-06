@@ -18,9 +18,13 @@ class MALClient:
                 raise ValueError(
                     "MyAnimeList user not found. Check the username and try again."
                 )
-            if response.status_code in (401, 403):
+            if response.status_code == 401:
                 raise RuntimeError(
-                    "Could not access MyAnimeList. Check the MAL client ID."
+                    "MyAnimeList authentication failed. Check the MAL client ID."
+                )
+            if response.status_code == 403:
+                raise ValueError(
+                    "This MyAnimeList profile or anime list is private or restricted."
                 )
             if response.status_code >= 500:
                 raise RuntimeError(
