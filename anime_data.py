@@ -8,7 +8,8 @@ from requests.exceptions import RequestException
 
 class AnimeDataClient:
     CACHE_FIELDS = (
-        "id,title,synopsis,mean,popularity,genres,statistics,main_picture,related_anime"
+        "id,title,synopsis,mean,popularity,genres,statistics,main_picture,"
+        "related_anime,num_episodes,status,media_type"
     )
     FULL_FIELDS = (
         "id,title,synopsis,mean,rank,popularity,num_list_users,"
@@ -34,8 +35,10 @@ class AnimeDataClient:
             return json.load(file)
 
     def _save_cache(self, anime_cache):
-        with self.cache_path.open("w", encoding="utf-8") as file:
+        temp_path = self.cache_path.with_name(self.cache_path.name + ".tmp")
+        with temp_path.open("w", encoding="utf-8") as file:
             json.dump(anime_cache, file, ensure_ascii=False, indent=2)
+        temp_path.replace(self.cache_path)
 
     def _get_page(self, url, params=None):
         response = requests.get(url, headers=self.headers, params=params, timeout=15)
@@ -101,19 +104,21 @@ class AnimeDataClient:
         )
         return self.get_anime_data(anime_ids, max_workers=workers)
 
-    def _fetch_anime_detail(self, anime_id):
+    def _fetch_anime_detail(self, anime_id, fields=None):
         url = f"https://api.myanimelist.net/v2/anime/{anime_id}"
         try:
             response = requests.get(
                 url,
                 headers=self.headers,
-                params=self.params,
+                params={"fields": ",".join(fields)} if fields is not None else self.params,
                 timeout=15
             )
         except RequestException as error:
             return anime_id, None, str(error)
 
         if response.status_code != 200:
+            if response.status_code == 429:
+                return anime_id, None, "429: MyAnimeList rate limit reached."
             if response.status_code == 404:
                 return anime_id, None, "Anime not found on MyAnimeList."
             if response.status_code >= 500:
@@ -129,6 +134,69 @@ class AnimeDataClient:
             )
 
         return anime_id, response.json(), None
+
+    def backfill_cache_fields(
+        self,
+        fields=("num_episodes", "status", "media_type"),
+        max_workers=3,
+        save_every=50,
+    ):
+        """Fetch missing metadata for cached IDs without replacing existing records."""
+        self.last_rate_limited = False
+        fields = tuple(dict.fromkeys(fields))
+        supported_fields = set(self.FULL_FIELDS.split(","))
+        if not fields or any(field not in supported_fields for field in fields):
+            raise ValueError("fields must be nonempty and listed in FULL_FIELDS")
+        if save_every < 1:
+            raise ValueError("save_every must be at least 1")
+
+        anime_cache = self._load_cache()
+        missing_ids = [
+            int(anime_id)
+            for anime_id, anime in anime_cache.items()
+            if any(field not in anime for field in fields)
+        ]
+        if not missing_ids:
+            print("All cached anime already contain the requested fields.")
+            return anime_cache
+
+        print(f"Backfilling {len(missing_ids)} cached anime...")
+        updated = 0
+        worker_count = max(1, min(max_workers, len(missing_ids)))
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = {
+                executor.submit(self._fetch_anime_detail, anime_id, fields): anime_id
+                for anime_id in missing_ids
+            }
+            for future in as_completed(futures):
+                anime_id, data, error = future.result()
+                if data is None:
+                    print(f"Skipping anime ID {anime_id}: {error}")
+                    if str(error).startswith("429"):
+                        self.last_rate_limited = True
+                        for pending_future in futures:
+                            pending_future.cancel()
+                        self._save_cache(anime_cache)
+                        break
+                    continue
+
+                record = anime_cache[str(anime_id)]
+                new_fields = {
+                    field: data[field]
+                    for field in fields
+                    if field not in record and field in data
+                }
+                if new_fields:
+                    record.update(new_fields)
+                    updated += 1
+                    if updated % save_every == 0:
+                        self._save_cache(anime_cache)
+                        print(f"Saved {updated} updated anime...")
+
+        if updated:
+            self._save_cache(anime_cache)
+        print(f"Backfill finished: {updated} anime updated.")
+        return anime_cache
 
     def get_anime_data(self, anime_ids, max_workers=5):
         self.last_rate_limited = False
