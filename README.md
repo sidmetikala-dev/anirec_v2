@@ -1,6 +1,6 @@
 # AniRec v2
 
-[Live Demo](https://anirec-app.vercel.app)
+[Live Demo](https://anirec-143802722214.us-east4.run.app/)
 
 AniRec v2 is a personalized anime recommendation system built with MyAnimeList data. The project transforms user rating history and cached anime metadata into personalized recommendations through feature engineering, model comparison, offline evaluation, and full-stack deployment.
 
@@ -156,14 +156,12 @@ Completed work includes:
 - selecting distance-weighted cosine KNN as the final model
 - evaluating the final configuration on 69 unseen users
 - building a Flask recommendation API
-- deploying the application on Vercel
+- deploying the application on Google Cloud Run
 - creating a PostgreSQL-backed recommendation-history pipeline
 - building Tableau visualizations for model comparison and tuning analysis
 
 ## Planned Improvements
 
-- migrate the backend to a persistent Render web service
-- replace the shared database connection with a bounded connection pool
 - add user authentication and persistent user profiles
 - add row-level security for user-owned data
 - improve recommendation-history analysis and SQL views
@@ -179,8 +177,7 @@ Completed work includes:
 - Pandas
 - NumPy
 - MyAnimeList API
-- Tableau
-- Vercel
+- Google Cloud Run
 
 ## Status
 
