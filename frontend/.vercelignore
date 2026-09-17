@@ -1,0 +1,13 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Local artifacts
+dist/
+coverage/
+*.log
+
+# Editor files
+.vscode/
+.idea/
