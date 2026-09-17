@@ -69,32 +69,48 @@ h1 {
   z-index: 25;
   align-items: center;
   top: 12%;
-  left: 45.1%;
+  left: 50%;
+  transform: translateX(-50%);
   transition:all .35s ease;
 }
 
 .form-card {
   position: fixed;
+  top: 25%;
+  left: 50%;
+  transform: translateX(-50%);
+
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 2rem));
+  min-height: 188px;
+  padding: 1rem;
+
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: auto;
+
   z-index: 20;
-  top: 25%;
-  left: 34.4%;
-  width: 560px;
-  min-height: 188px;
-  padding: 1rem;
-  margin-bottom: 2rem;
   border-radius: 20px;
   background-color: rgba(255, 255, 255, 0.378);
-  box-shadow: 0 0 23px 0 black;
+  box-shadow: 0 0 23px black;
   transition: transform 0.3s ease;
 }
 
+.form-card input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 46px;
+  padding: 0.5rem;
+  font-size: 20px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  margin-bottom: 1rem;
+}
+
 .form-card:hover {
-  transform: scale(1.05);
+  transform: translateX(-50%) scale(1.05);
 }
 
 .form-card label {
@@ -104,17 +120,6 @@ h1 {
   display: inline-block;
   color: #fff7d6;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-}
-
-.form-card input {
-  font-size: 20px;
-  width: 520px;
-  border-radius: 8px;
-  height: 30px;
-  margin-bottom: 1rem;
-  border: none;
-  outline: none;
-  padding: 0.5rem;
 }
 
 /* ======= Button ======= */
@@ -147,6 +152,7 @@ button:active {
 
 h1:hover {
   transform:
+    translateX(-50%)
     rotateX(12deg)
     rotateY(-12deg)
     translateZ(40px)
