@@ -1,0 +1,21 @@
+uncertainty_weight,k,avg_precision_at_k,std_precision_at_k,avg_hit_rate,std_hit_rate,avg_hits,baseline_avg_precision_at_k,baseline_std_precision_at_k,baseline_avg_hit_rate,baseline_std_hit_rate,baseline_avg_hits,feature_set,numeric_features,n_numeric_features,n_runs
+7.5,5,0.64,0.178885,0.103226,0.028852,3.2,0.17,0.134164,0.027419,0.021639,0.85,core_watching,"mean, popularity, num_episodes, watching",4,20
+7.5,5,0.63,0.217885,0.101613,0.035143,3.15,0.17,0.134164,0.027419,0.021639,0.85,core_dropped,"mean, popularity, num_episodes, dropped",4,20
+7.5,5,0.62,0.214231,0.1,0.034553,3.1,0.17,0.134164,0.027419,0.021639,0.85,core_on_hold,"mean, popularity, num_episodes, on_hold",4,20
+7.5,5,0.6,0.215211,0.096774,0.034711,3.0,0.17,0.134164,0.027419,0.021639,0.85,core_num_scoring_users_on_hold,"mean, popularity, num_episodes, num_scoring_us...",5,20
+7.5,5,0.6,0.224781,0.096774,0.036255,3.0,0.17,0.134164,0.027419,0.021639,0.85,core_completed_dropped,"mean, popularity, num_episodes, completed, dro...",5,20
+7.5,5,0.6,0.215211,0.096774,0.034711,3.0,0.17,0.134164,0.027419,0.021639,0.85,core_on_hold_dropped,"mean, popularity, num_episodes, on_hold, dropped",5,20
+7.5,5,0.59,0.219809,0.095161,0.035453,2.95,0.17,0.134164,0.027419,0.021639,0.85,core_num_scoring_users_dropped,"mean, popularity, num_episodes, num_scoring_us...",5,20
+7.5,5,0.59,0.219809,0.095161,0.035453,2.95,0.17,0.134164,0.027419,0.021639,0.85,core_completed_on_hold,"mean, popularity, num_episodes, completed, on_...",5,20
+7.5,5,0.59,0.210013,0.095161,0.033873,2.95,0.17,0.134164,0.027419,0.021639,0.85,core_dropped_plan_to_watch,"mean, popularity, num_episodes, dropped, plan_...",5,20
+7.5,5,0.59,0.219809,0.095161,0.035453,2.95,0.17,0.134164,0.027419,0.021639,0.85,core_num_scoring_users_completed_on_hold,"mean, popularity, num_episodes, num_scoring_us...",6,20
+7.5,5,0.59,0.219809,0.095161,0.035453,2.95,0.17,0.134164,0.027419,0.021639,0.85,core_num_scoring_users_completed_dropped,"mean, popularity, num_episodes, num_scoring_us...",6,20
+7.5,5,0.58,0.182382,0.093548,0.029416,2.9,0.17,0.134164,0.027419,0.021639,0.85,core_watching_dropped,"mean, popularity, num_episodes, watching, dropped",5,20
+7.5,5,0.58,0.223842,0.093548,0.036104,2.9,0.17,0.134164,0.027419,0.021639,0.85,core_num_scoring_users_on_hold_dropped,"mean, popularity, num_episodes, num_scoring_us...",6,20
+7.5,5,0.58,0.223842,0.093548,0.036104,2.9,0.17,0.134164,0.027419,0.021639,0.85,core_completed_on_hold_dropped,"mean, popularity, num_episodes, completed, on_...",6,20
+7.5,5,0.57,0.217885,0.091935,0.035143,2.85,0.17,0.134164,0.027419,0.021639,0.85,core_completed,"mean, popularity, num_episodes, completed",4,20
+7.5,5,0.57,0.207998,0.091935,0.033548,2.85,0.17,0.134164,0.027419,0.021639,0.85,core_plan_to_watch,"mean, popularity, num_episodes, plan_to_watch",4,20
+7.5,5,0.57,0.217885,0.091935,0.035143,2.85,0.17,0.134164,0.027419,0.021639,0.85,core_num_scoring_users_completed_on_hold_dropped,"mean, popularity, num_episodes, num_scoring_us...",7,20
+7.5,5,0.56,0.221003,0.090323,0.035646,2.8,0.17,0.134164,0.027419,0.021639,0.85,core,"mean, popularity, num_episodes",3,20
+7.5,5,0.56,0.211262,0.090323,0.034074,2.8,0.17,0.134164,0.027419,0.021639,0.85,core_num_scoring_users_completed,"mean, popularity, num_episodes, num_scoring_us...",5,20
+7.5,5,0.55,0.193309,0.08871,0.031179,2.75,0.17,0.134164,0.027419,0.021639,0.85,core_num_scoring_users,"mean, popularity, num_episodes, num_scoring_users",4,20

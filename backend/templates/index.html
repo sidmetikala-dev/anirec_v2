@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AniRecs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Asimovian&display=swap" rel="stylesheet">
+</head>
+<body>
+    <h1>AniRecs</h1>
+    <main id="container">
+        <div class="form-group">
+            <label for="username">MAL Username:</label>
+            <input id="username" placeholder="Username" />
+        </div>
+        
+        <button id="fetch">Get Recs</button>
+        <section id="results"></section>
+    </main>
+
+    <script src="{{ url_for('static', filename='index.js') }}"></script>
+</body>
+</html>

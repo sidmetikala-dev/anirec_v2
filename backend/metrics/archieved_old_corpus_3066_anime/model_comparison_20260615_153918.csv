@@ -1,0 +1,21 @@
+comparison,model,k,n_runs,uncertainty_weight,knn_metric,avg_precision_at_k,std_precision_at_k,avg_hit_rate,std_hit_rate,avg_hits,mean_difference_vs_knn,paired_t_p_value,wilcoxon_p_value,notes
+broad_model_comparison,bayesian_ridge,5,50,8.5,cosine,0.644,0.229605,0.103871,0.037033,3.22,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,knn,5,50,8.5,cosine,0.196,0.124474,0.031613,0.020077,0.98,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,gradient_boosting,5,50,8.5,cosine,0.136,0.148131,0.021935,0.023892,0.68,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,elastic_net_cv,5,50,8.5,cosine,0.132,0.125259,0.02129,0.020203,0.66,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,lasso_cv,5,50,8.5,cosine,0.128,0.126233,0.020645,0.02036,0.64,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,global_mean,5,50,8.5,cosine,0.116,0.134559,0.01871,0.021703,0.58,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,ridge_cv,5,50,8.5,cosine,0.104,0.108722,0.016774,0.017536,0.52,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,bayesian_ridge,10,50,8.5,cosine,0.396,0.133951,0.127742,0.04321,3.96,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,knn,10,50,8.5,cosine,0.218,0.100387,0.070323,0.032383,2.18,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,ridge_cv,10,50,8.5,cosine,0.15,0.08391,0.048387,0.027068,1.5,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,elastic_net_cv,10,50,8.5,cosine,0.142,0.094954,0.045806,0.03063,1.42,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,lasso_cv,10,50,8.5,cosine,0.134,0.089466,0.043226,0.02886,1.34,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,gradient_boosting,10,50,8.5,cosine,0.116,0.10759,0.037419,0.034706,1.16,,,,Broad 50-run comparison with selected feature set
+broad_model_comparison,global_mean,10,50,8.5,cosine,0.076,0.062466,0.024516,0.02015,0.76,,,,Broad 50-run comparison with selected feature set
+focused_bayesian_vs_knn,bayesian_ridge,5,500,8.5,cosine,0.6492,0.211255,0.10471,0.034073,3.246,0.422,2.585344e-141,1.186877e-78,Bayesian Ridge with uncertainty-aware ranking
+focused_bayesian_vs_knn,knn,5,500,8.5,cosine,0.2272,0.151082,0.036645,0.024368,1.136,,,,Cosine KNN baseline
+focused_bayesian_vs_knn,global_mean,5,500,8.5,cosine,0.0948,0.119673,0.01529,0.019302,0.474,,,,Global mean baseline
+focused_bayesian_vs_knn,bayesian_ridge,10,500,8.5,cosine,0.4096,0.136474,0.132129,0.044024,4.096,0.1792,5.644253e-87,1.045176e-64,Bayesian Ridge with uncertainty-aware ranking
+focused_bayesian_vs_knn,knn,10,500,8.5,cosine,0.2304,0.105347,0.074323,0.033983,2.304,,,,Cosine KNN baseline
+focused_bayesian_vs_knn,global_mean,10,500,8.5,cosine,0.0638,0.058278,0.020581,0.018799,0.638,,,,Global mean baseline
