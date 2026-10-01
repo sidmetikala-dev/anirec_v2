@@ -1,9 +1,44 @@
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+import psycopg
 import requests
+from psycopg.types.json import Jsonb
 from requests.exceptions import RequestException
+
+
+def upload_cache_to_supabase(database_url, cache_file=None):
+    cache_file = cache_file or (
+        Path(__file__).resolve().parents[1] / "data" / "anime_cache.json"
+    )
+    with Path(cache_file).open("r", encoding="utf-8") as file:
+        anime_cache = json.load(file)
+
+    with psycopg.connect(database_url, sslmode="require") as connection:
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS anime_cache (
+                anime_id BIGINT PRIMARY KEY,
+                anime_name TEXT NOT NULL,
+                data JSONB NOT NULL
+            )
+        """)
+        connection.execute("""
+            ALTER TABLE anime_cache ADD COLUMN IF NOT EXISTS anime_name TEXT
+        """)
+        connection.cursor().executemany("""
+            INSERT INTO anime_cache (anime_id, anime_name, data)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (anime_id) DO UPDATE SET
+                anime_name = EXCLUDED.anime_name,
+                data = EXCLUDED.data
+        """, [
+            (int(anime_id), anime["title"], Jsonb(anime))
+            for anime_id, anime in anime_cache.items()
+        ])
+
+    print(f"Uploaded {len(anime_cache)} anime to Supabase.")
 
 
 class AnimeDataClient:

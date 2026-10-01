@@ -64,7 +64,7 @@ with pool.connection() as conn:
         cur.execute("""
         CREATE TABLE IF NOT EXISTS recommendation_items (
             run_id BIGINT NOT NULL REFERENCES recommendation_runs(run_id) ON DELETE CASCADE,
-            anime_id BIGINT NOT NULL,
+            anime_id BIGINT NOT NULL REFERENCES anime_cache(anime_id) ON DELETE CASCADE,
             title TEXT NOT NULL,
             picture_link TEXT,
             rank_position SMALLINT NOT NULL CONSTRAINT rank_pos_in_range CHECK (rank_position BETWEEN 1 AND 50),

@@ -128,6 +128,79 @@ class SimilarityRecommender:
 
         return list(zip(anime_ids[candidate_idx].tolist(), cosine_sims[candidate_idx].tolist()))
 
+    def find_similar(
+        self,
+        positive_anime_ids: list[int],
+        negative_anime_ids: list[int] | None = None,
+        negative_weight: float = 0.5,
+        limit: int = 100,
+    ) -> dict:
+        if self.anime_df_scaled is None:
+            raise ValueError("Create anime vectors before finding similar anime.")
+        if not positive_anime_ids:
+            raise ValueError("At least one positive anime ID is required.")
+        if limit < 1:
+            raise ValueError("limit must be at least 1.")
+        if negative_weight < 0:
+            raise ValueError("negative_weight cannot be negative.")
+
+        negative_anime_ids = negative_anime_ids or []
+        reference_ids = positive_anime_ids + negative_anime_ids
+
+        missing_ids = [
+            anime_id
+            for anime_id in reference_ids
+            if anime_id not in self.anime_df_scaled.index
+        ]
+        if missing_ids:
+            raise ValueError(f"Unknown anime IDs: {missing_ids}")
+
+        anime_ids = self.anime_df_scaled.index.to_numpy()
+        anime_matrix = self.anime_df_scaled.to_numpy(dtype=float)
+        anime_norms = np.linalg.norm(anime_matrix, axis=1)
+
+        normalized_matrix = np.divide(
+            anime_matrix,
+            anime_norms[:, None],
+            out=np.zeros_like(anime_matrix),
+            where=anime_norms[:, None] != 0,
+        )
+
+        positive_vectors = normalized_matrix[
+            self.anime_df_scaled.index.get_indexer(positive_anime_ids)
+        ]
+        positive_scores = (
+            normalized_matrix @ positive_vectors.T
+        ).mean(axis=1)
+
+        if negative_anime_ids:
+            negative_vectors = normalized_matrix[
+                self.anime_df_scaled.index.get_indexer(negative_anime_ids)
+            ]
+            negative_scores = np.maximum(
+                normalized_matrix @ negative_vectors.T,
+                0,
+            ).max(axis=1)
+        else:
+            negative_scores = np.zeros(len(anime_ids))
+
+        scores = positive_scores - negative_weight * negative_scores
+
+        valid_indices = np.flatnonzero(
+            (anime_norms > 0)
+            & ~np.isin(anime_ids, reference_ids)
+        )
+        result_count = min(limit, len(valid_indices))
+
+        ranked_indices = valid_indices[
+            np.argsort(scores[valid_indices])[::-1][:result_count]
+        ]
+
+        return {
+            int(anime_ids[index]): float(scores[index])
+            for index in ranked_indices
+        }
+
 class BayesianRidgeRecommender:
     def __init__(
         self,
