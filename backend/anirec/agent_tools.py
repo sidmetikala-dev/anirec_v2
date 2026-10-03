@@ -14,29 +14,27 @@
 # Ranked recommendations
 #    ↓
 # LLM explanation
-from .anime_recommender import KNNRegressor, SimilarityRecommender
+from collections.abc import Callable
+
+from .anime_recommender import SimilarityRecommender
 from .anime_repository import search_anime
 
 class AgentTools:
     def __init__(self, 
                  recommender: SimilarityRecommender, 
-                 knn_regressor: KNNRegressor):
+                 anime_data: dict,
+                 recommendation_provider: Callable):
         self.recommender = recommender
-        self.knn_regressor = knn_regressor
+        self.anime_data = anime_data
+        self.recommendation_provider = recommendation_provider
 
-    def get_recs_tool(self, limit: int = 100) -> dict:
+    def get_recs_tool(self, username: str, limit: int = 50) -> dict:
         """Return personalized anime IDs and scores in ranked order."""
-        self.knn_regressor.fit()
-        recommendations = self.knn_regressor.get_recs(top_k=limit)
-
-        sim_ids_scores = dict(
-            zip(
-                recommendations["anime_id"],
-                recommendations["predicted_score"],
-            )
-        )
-
-        return sim_ids_scores
+        result = self.recommendation_provider(username, top_k=limit)
+        return {
+            row["anime_id"]: row["predicted_score"]
+            for row in result["recommendations"]
+        }
 
 
     def search_anime_tool(
@@ -70,7 +68,7 @@ class AgentTools:
         status: str | None = None,
     ) -> dict[int, float]:
         """Filter ranked anime without changing their existing order."""
-        anime_data = self.knn_regressor.anime_data or {}
+        anime_data = self.anime_data
         status_aliases = {
             "finished": "finished_airing",
             "airing": "currently_airing",
@@ -108,7 +106,7 @@ class AgentTools:
             "picture_link",
             "score",
         ]
-        anime_data = self.knn_regressor.anime_data or {}
+        anime_data = self.anime_data
         results = []
 
         for anime_id, score in recommendations.items():

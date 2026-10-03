@@ -1,6 +1,11 @@
 from flask import Flask, jsonify, render_template
 from dotenv import load_dotenv
-from anirec.routes.recommendations import recommendations_py
+from anirec.routes.recommendations import (
+    recommendations_py, recommendation_dependencies, recommender, anime_data,
+)
+from anirec.agent_tools import AgentTools
+from anirec.recommendation_service import get_recs_with_username
+from functools import partial
 
 from psycopg_pool import ConnectionPool
 import os
@@ -30,6 +35,11 @@ pool = ConnectionPool(
 )
 
 app.config["DB_POOL"] = pool
+app.config["AGENT_TOOLS"] = AgentTools(
+    recommender,
+    anime_data,
+    partial(get_recs_with_username, **recommendation_dependencies(pool)),
+)
 
 with pool.connection() as conn:
     with conn.cursor() as cur:
