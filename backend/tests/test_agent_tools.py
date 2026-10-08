@@ -108,6 +108,73 @@ class AgentToolsTests(unittest.TestCase):
         )
         self.assertEqual(self.tools.get_metadata({}), [])
 
+    def test_sdk_schemas_export_all_tools_and_formats(self):
+        expected = {"get_recs_tool", "search_anime_tool", "find_similar_tool",
+                    "filter_anime", "get_metadata"}
+        for format in ("chat_completions", "responses", "anthropic"):
+            schemas = json.loads(json.dumps(self.tools.tool_schemas(format)))
+            definitions = [tool["function"] for tool in schemas] if format == "chat_completions" else schemas
+            self.assertEqual({tool["name"] for tool in definitions}, expected)
+            for tool in definitions:
+                schema = tool["input_schema" if format == "anthropic" else "parameters"]
+                self.assertFalse(schema["additionalProperties"])
+                self.assertTrue(tool["description"])
+        with self.assertRaises(ValueError):
+            self.tools.tool_schemas("invalid")
+
+    def test_sdk_dispatch_uses_defaults_and_serializes_results(self):
+        self.recommender.find_similar.return_value = {30: 0.9, 20: 0.7}
+        result = self.tools.execute_tool("find_similar_tool", '{"positive_anime_ids": [1]}')
+        self.assertEqual(json.loads(result), {"30": 0.9, "20": 0.7})
+        self.recommender.find_similar.assert_called_once_with([1], None, 0.5, 100)
+
+    def test_sdk_rankings_round_trip_through_filter_and_metadata(self):
+        filtered = self.tools.execute_tool("filter_anime", {
+            "sim_ids_scores": {"30": 9.5, "10": 9.0, "20": 8.5},
+            "max_episodes": 50, "status": "finished",
+        })
+        self.assertEqual(list(json.loads(filtered)), ["30", "20"])
+        output = self.tools.execute_tool("get_metadata", {
+            "recommendations": json.loads(filtered),
+        })
+        self.assertEqual([row["anime_id"] for row in json.loads(output)], [30, 20])
+
+    def test_sdk_rejects_invalid_arguments_before_backend_execution(self):
+        for name, arguments in (
+            ("get_recs_tool", {"username": "   "}),
+            ("get_recs_tool", {"username": "user", "limit": 501}),
+            ("get_recs_tool", {"username": "user", "limit": True}),
+            ("get_recs_tool", {"username": "user", "unexpected": 1}),
+            ("find_similar_tool", {"positive_anime_ids": []}),
+            ("find_similar_tool", {"positive_anime_ids": [-1]}),
+            ("find_similar_tool", {"positive_anime_ids": [1], "negative_weight": 2}),
+            ("search_anime_tool", {"anime_names": []}),
+            ("filter_anime", {"sim_ids_scores": {"bad": 1}}),
+            ("filter_anime", {"sim_ids_scores": {}, "status": "invalid"}),
+            ("filter_anime", {"sim_ids_scores": {"30": float("nan")}}),
+            ("get_metadata", {"recommendations": {}, "columns_to_get": []}),
+            ("get_recs_tool", "{broken json"),
+            ("get_recs_tool", "[]"),
+        ):
+            with self.subTest(name=name, arguments=arguments):
+                output = json.loads(self.tools.execute_tool(name, arguments))
+                self.assertEqual(output["error"]["code"], "invalid_arguments")
+        self.provider.assert_not_called()
+        self.recommender.find_similar.assert_not_called()
+
+    def test_sdk_dispatch_allowlist_and_backend_errors(self):
+        output = json.loads(self.tools.execute_tool("__init__", {}))
+        self.assertEqual(output["error"]["code"], "unknown_tool")
+        self.provider.side_effect = RuntimeError("backend unavailable")
+        with self.assertRaisesRegex(RuntimeError, "backend unavailable"):
+            self.tools.execute_tool("get_recs_tool", {"username": "user"})
+
+    def test_metadata_cannot_overwrite_ranked_score_or_id(self):
+        self.metadata["30"].update({"score": 1, "anime_id": 999})
+        result = self.tools.execute_tool("get_metadata", {"recommendations": {"30": 9.5}})
+        self.assertEqual(json.loads(result)[0]["score"], 9.5)
+        self.assertEqual(json.loads(result)[0]["anime_id"], 30)
+
 
 if __name__ == "__main__":
     unittest.main()
