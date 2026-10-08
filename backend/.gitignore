@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+#data files
+backend/data/anime.csv
+backend/data/tuning_user_data_100.csv
+backend/data/user_anime_df.parquet.csv
+backend/data/UserAnimeList.csv
+backend/data/UserList.csv
