@@ -37,16 +37,16 @@ class AgentToolsTests(unittest.TestCase):
             {"anime_id": 30, "predicted_score": 9.5},
             {"anime_id": 10, "predicted_score": 9.0},
         ]}
-        result = self.tools.get_recs_tool("test_user", limit=2)
+        result = self.tools.get_recs_with_username_tool("test_user", limit=2)
         self.provider.assert_called_once_with("test_user", top_k=2)
         self.assertEqual(list(result.items()), [(30, 9.5), (10, 9.0)])
 
     def test_personalized_empty_results_and_errors(self):
         self.provider.return_value = {"recommendations": []}
-        self.assertEqual(self.tools.get_recs_tool("test_user"), {})
+        self.assertEqual(self.tools.get_recs_with_username_tool("test_user"), {})
         self.provider.side_effect = ValueError("Username is required")
         with self.assertRaisesRegex(ValueError, "Username is required"):
-            self.tools.get_recs_tool("")
+            self.tools.get_recs_with_username_tool("")
 
     @patch("anirec.agent_tools.search_anime")
     def test_search_accepts_single_and_multiple_names(self, search):
@@ -109,7 +109,7 @@ class AgentToolsTests(unittest.TestCase):
         self.assertEqual(self.tools.get_metadata({}), [])
 
     def test_sdk_schemas_export_all_tools_and_formats(self):
-        expected = {"get_recs_tool", "search_anime_tool", "find_similar_tool",
+        expected = {"get_recs_with_username_tool", "search_anime_tool", "find_similar_tool",
                     "filter_anime", "get_metadata"}
         for format in ("chat_completions", "responses", "anthropic"):
             schemas = json.loads(json.dumps(self.tools.tool_schemas(format)))
@@ -141,10 +141,10 @@ class AgentToolsTests(unittest.TestCase):
 
     def test_sdk_rejects_invalid_arguments_before_backend_execution(self):
         for name, arguments in (
-            ("get_recs_tool", {"username": "   "}),
-            ("get_recs_tool", {"username": "user", "limit": 501}),
-            ("get_recs_tool", {"username": "user", "limit": True}),
-            ("get_recs_tool", {"username": "user", "unexpected": 1}),
+            ("get_recs_with_username_tool", {"username": "   "}),
+            ("get_recs_with_username_tool", {"username": "user", "limit": 501}),
+            ("get_recs_with_username_tool", {"username": "user", "limit": True}),
+            ("get_recs_with_username_tool", {"username": "user", "unexpected": 1}),
             ("find_similar_tool", {"positive_anime_ids": []}),
             ("find_similar_tool", {"positive_anime_ids": [-1]}),
             ("find_similar_tool", {"positive_anime_ids": [1], "negative_weight": 2}),
@@ -153,8 +153,8 @@ class AgentToolsTests(unittest.TestCase):
             ("filter_anime", {"sim_ids_scores": {}, "status": "invalid"}),
             ("filter_anime", {"sim_ids_scores": {"30": float("nan")}}),
             ("get_metadata", {"recommendations": {}, "columns_to_get": []}),
-            ("get_recs_tool", "{broken json"),
-            ("get_recs_tool", "[]"),
+            ("get_recs_with_username_tool", "{broken json"),
+            ("get_recs_with_username_tool", "[]"),
         ):
             with self.subTest(name=name, arguments=arguments):
                 output = json.loads(self.tools.execute_tool(name, arguments))
@@ -167,7 +167,7 @@ class AgentToolsTests(unittest.TestCase):
         self.assertEqual(output["error"]["code"], "unknown_tool")
         self.provider.side_effect = RuntimeError("backend unavailable")
         with self.assertRaisesRegex(RuntimeError, "backend unavailable"):
-            self.tools.execute_tool("get_recs_tool", {"username": "user"})
+            self.tools.execute_tool("get_recs_with_username_tool", {"username": "user"})
 
     def test_metadata_cannot_overwrite_ranked_score_or_id(self):
         self.metadata["30"].update({"score": 1, "anime_id": 999})

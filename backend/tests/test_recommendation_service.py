@@ -64,7 +64,7 @@ class RecommendationServiceTests(unittest.TestCase):
     def test_tool_uses_service_and_shared_metadata(self):
         provider = partial(get_recs_with_username, **self.dependencies)
         tools = AgentTools(self.dependencies["recommender"], self.metadata, provider)
-        ranked = tools.get_recs_tool("user", limit=5)
+        ranked = tools.get_recs_with_username_tool("user", limit=5)
         self.assertEqual(ranked, {20: 8.5})
         self.assertEqual(tools.filter_anime(ranked, max_episodes=50), {})
         self.assertEqual(tools.get_metadata(ranked)[0]["title"], "Naruto")

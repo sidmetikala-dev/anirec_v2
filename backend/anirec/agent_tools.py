@@ -36,7 +36,7 @@ class ToolArguments(BaseModel):
 
 class GetRecsArguments(ToolArguments):
     username: Name = Field(description="MyAnimeList username to personalize recommendations for.")
-    limit: Limit = 50
+    limit: Annotated[int, Field(ge=1, le=50, strict=True)] = 50
 
 
 class SearchAnimeArguments(ToolArguments):
@@ -64,7 +64,7 @@ class GetMetadataArguments(ToolArguments):
 
 # Explicit allowlist: model-generated names cannot access arbitrary attributes.
 TOOL_ARGUMENTS: dict[str, type[ToolArguments]] = {
-    "get_recs_tool": GetRecsArguments,
+    "get_recs_with_username_tool": GetRecsArguments,
     "search_anime_tool": SearchAnimeArguments,
     "find_similar_tool": FindSimilarArguments,
     "filter_anime": FilterAnimeArguments,
@@ -88,13 +88,13 @@ class AgentTools:
         self.recommendation_provider = recommendation_provider
 
     @classmethod
-    def tool_schemas(cls, format: Literal["chat_completions", "responses", "anthropic"] = "chat_completions") -> list[dict]:
+    def tool_schemas(cls, format: Literal["chat_completions", "responses", "anthropic", "gemini"] = "chat_completions") -> list[dict]:
         """Export SDK tool definitions, generated from the argument models.
 
         Strict structured generation is disabled because rankings contain
         dynamic ID keys. Pydantic still validates every invocation locally.
         """
-        if format not in ("chat_completions", "responses", "anthropic"):
+        if format not in ("chat_completions", "responses", "anthropic", "gemini"):
             raise ValueError(f"Unsupported tool schema format: {format}")
         tools = []
         for name, model in TOOL_ARGUMENTS.items():
@@ -102,6 +102,8 @@ class AgentTools:
             schema = model.model_json_schema()
             if format == "anthropic":
                 tools.append({"name": name, "description": description, "input_schema": schema})
+            elif format == "gemini":
+                tools.append({"name": name, "description": description, "parameters": schema})
             else:
                 definition = {"name": name, "description": description,
                               "parameters": schema, "strict": False}
@@ -132,8 +134,9 @@ class AgentTools:
         result = getattr(self, name)(**validated.model_dump())
         return json.dumps(result, allow_nan=False)
 
-    def get_recs_tool(self, username: str, limit: int = 50) -> dict:
-        """Return personalized anime IDs and scores in ranked order."""
+    def get_recs_with_username_tool(self, username: str, limit: int = 50) -> dict:
+        """Only use if username is given.
+        Return personalized anime IDs and scores in ranked order."""
         result = self.recommendation_provider(username, top_k=limit)
         return {
             row["anime_id"]: row["predicted_score"]

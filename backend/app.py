@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from anirec.routes.recommendations import (
     recommendations_py, recommendation_dependencies, recommender, anime_data,
 )
+from anirec.routes.agent import agent_py, init_agent_tools
 from anirec.agent_tools import AgentTools
 from anirec.recommendation_service import get_recs_with_username
 from functools import partial
@@ -15,6 +16,7 @@ database_url = os.getenv("DATABASE_URL_PROD")
 
 app = Flask(__name__)
 app.register_blueprint(recommendations_py, url_prefix="/recs")
+app.register_blueprint(agent_py, url_prefix="/agent")
 
 #Connect to Postgres
 if not database_url:
@@ -95,6 +97,9 @@ with pool.connection() as conn:
         ALTER TABLE recommendation_items ENABLE ROW LEVEL SECURITY;
         """)
         
+#Setup
+with app.app_context():
+    init_agent_tools(app)
 
 #Routes
 @app.route('/')
