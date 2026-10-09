@@ -16,18 +16,17 @@ class AgentToolsTests(unittest.TestCase):
         self.metadata = {
             "30": {
                 "title": "Short finished anime", "num_episodes": 12,
-                "status": "finished_airing", "main_picture": {"medium": "cover.jpg"},
+                "main_picture": {"medium": "cover.jpg"},
             },
             "10": {
                 "title": "Long finished anime", "num_episodes": 100,
-                "status": "finished_airing",
             },
             "20": {
                 "title": "Boundary anime", "num_episodes": 50,
-                "status": "finished_airing", "main_picture": None,
+                "main_picture": None,
             },
-            "40": {"num_episodes": 24, "status": "currently_airing"},
-            "50": {"status": "not_yet_aired"},
+            "40": {"num_episodes": 24},
+            "50": {},
         }
         self.tools = AgentTools(self.recommender, self.metadata, self.provider)
         self.ranked = {30: 9.5, 10: 9.0, 20: 8.5, 40: 8.0, 50: 7.5}
@@ -67,25 +66,20 @@ class AgentToolsTests(unittest.TestCase):
         self.assertEqual(self.tools.find_similar_tool([1]), {})
         self.recommender.find_similar.assert_called_once_with([1], None, 0.5, 100)
 
-    def test_combined_filters_preserve_rank_and_do_not_mutate_inputs(self):
+    def test_episode_filter_preserves_rank_and_does_not_mutate_inputs(self):
         original_metadata = copy.deepcopy(self.metadata)
         original_ranking = list(self.ranked.items())
-        result = self.tools.filter_anime(self.ranked, max_episodes=50, status="finished")
-        self.assertEqual(list(result.items()), [(30, 9.5), (20, 8.5)])
+        result = self.tools.filter_anime(self.ranked, max_episodes=50)
+        self.assertEqual(list(result.items()), [(30, 9.5), (20, 8.5), (40, 8.0)])
         self.assertEqual(list(self.ranked.items()), original_ranking)
         self.assertEqual(self.metadata, original_metadata)
 
     def test_no_filters_preserve_all_candidates_and_order(self):
         self.assertEqual(list(self.tools.filter_anime(self.ranked).items()), list(self.ranked.items()))
 
-    def test_status_aliases_and_canonical_values(self):
-        for status, expected in (
-            ("FINISHED", [30, 10, 20]), ("finished_airing", [30, 10, 20]),
-            ("airing", [40]), ("currently_airing", [40]),
-            ("upcoming", [50]), ("not_yet_aired", [50]),
-        ):
-            with self.subTest(status=status):
-                self.assertEqual(list(self.tools.filter_anime(self.ranked, status=status)), expected)
+    def test_shuffled_filter_input_returns_descending_scores(self):
+        result = self.tools.filter_anime({40: 8.0, 10: 9.0, 20: 8.5, 30: 9.5}, max_episodes=50)
+        self.assertEqual(list(result.items()), [(30, 9.5), (20, 8.5), (40, 8.0)])
 
     def test_unknown_episode_counts_and_missing_metadata_fail_episode_filter(self):
         self.assertEqual(self.tools.filter_anime({50: 1.0, 999: 0.5}, max_episodes=50), {})
@@ -119,6 +113,8 @@ class AgentToolsTests(unittest.TestCase):
                 schema = tool["input_schema" if format == "anthropic" else "parameters"]
                 self.assertFalse(schema["additionalProperties"])
                 self.assertTrue(tool["description"])
+                if tool["name"] == "filter_anime":
+                    self.assertEqual(set(schema["properties"]), {"sim_ids_scores", "max_episodes"})
         with self.assertRaises(ValueError):
             self.tools.tool_schemas("invalid")
 
@@ -131,7 +127,7 @@ class AgentToolsTests(unittest.TestCase):
     def test_sdk_rankings_round_trip_through_filter_and_metadata(self):
         filtered = self.tools.execute_tool("filter_anime", {
             "sim_ids_scores": {"30": 9.5, "10": 9.0, "20": 8.5},
-            "max_episodes": 50, "status": "finished",
+            "max_episodes": 50,
         })
         self.assertEqual(list(json.loads(filtered)), ["30", "20"])
         output = self.tools.execute_tool("get_metadata", {
@@ -150,7 +146,6 @@ class AgentToolsTests(unittest.TestCase):
             ("find_similar_tool", {"positive_anime_ids": [1], "negative_weight": 2}),
             ("search_anime_tool", {"anime_names": []}),
             ("filter_anime", {"sim_ids_scores": {"bad": 1}}),
-            ("filter_anime", {"sim_ids_scores": {}, "status": "invalid"}),
             ("filter_anime", {"sim_ids_scores": {"30": float("nan")}}),
             ("get_metadata", {"recommendations": {}, "columns_to_get": []}),
             ("get_recs_with_username_tool", "{broken json"),

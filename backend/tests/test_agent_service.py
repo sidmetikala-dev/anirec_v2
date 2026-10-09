@@ -65,9 +65,11 @@ class AgentServiceTests(unittest.TestCase):
 
     def test_sequential_tools_keep_prompt_history_signatures_and_model(self):
         first, second, final = tool_turn("search_anime_tool"), tool_turn("find_similar_tool"), answer()
-        self.client.models.generate_content.side_effect = [first, second, final, answer()]
+        self.client.models.generate_content.side_effect = [first, second, final, answer(json.dumps({
+            "recommendations": [{"anime_id": 30, "explanation": "Similar themes"}],
+        }))]
         self.tools.execute_tool.side_effect = ['[{"anime_id": 20}]', '{"30": 0.9}']
-        self.assertEqual(self.run_agent().parsed.model_dump(exclude_defaults=True), FINAL_ANSWER)
+        self.assertEqual([r.anime_id for r in self.run_agent().parsed.recommendations], [30])
         calls = self.client.models.generate_content.call_args_list
         self.assertEqual([len(c.kwargs["contents"]) for c in calls], [1, 3, 5, 7])
         self.assertEqual({c.kwargs["model"] for c in calls}, {"gemini-3.8-flash"})
@@ -79,6 +81,40 @@ class AgentServiceTests(unittest.TestCase):
         self.assertEqual([turn.role for turn in history], ["user", "model", "user", "model", "user"])
         self.assertEqual(history[4].parts[0].function_response.response, {"30": 0.9})
         self.assertTrue(calls[0].kwargs["config"].automatic_function_calling.disable)
+
+    def test_backend_controls_filter_input_metadata_selection_and_final_order(self):
+        source = {"10": 1.0, "20": 0.9, "30": 0.8, "40": 0.7, "50": 0.6, "60": 0.5}
+        filtered = {"20": 0.9, "30": 0.8, "40": 0.7, "50": 0.6, "60": 0.5}
+        filter_turn = tool_turn("filter_anime")
+        filter_turn.candidates[0].content.parts[0].function_call.args = {
+            "max_episodes": 219, "sim_ids_scores": {"60": 99},
+        }
+        self.client.models.generate_content.side_effect = [
+            tool_turn("find_similar_tool"), filter_turn, tool_turn("get_metadata"),
+            answer("Ready"), answer(json.dumps({"recommendations": [
+                {"anime_id": i, "explanation": str(i)} for i in [60, 50, 40, 30, 20]
+            ]})),
+        ]
+        self.tools.execute_tool.side_effect = [json.dumps(source), json.dumps(filtered), '[]']
+        response = self.run_agent()
+        calls = self.tools.execute_tool.call_args_list
+        self.assertEqual(list(calls[1].args[1]["sim_ids_scores"]), [10, 20, 30, 40, 50, 60])
+        self.assertEqual(calls[1].args[1]["max_episodes"], 219)
+        self.assertEqual(list(calls[2].args[1]["recommendations"]), [20, 30, 40, 50, 60])
+        self.assertEqual([r.anime_id for r in response.parsed.recommendations], [20, 30, 40, 50, 60])
+
+    def test_final_selection_rejects_missing_extra_and_duplicate_ids(self):
+        for ids in ([20], [20, 30, 99], [20, 30, 30]):
+            with self.subTest(ids=ids):
+                self.client.models.generate_content.side_effect = [
+                    tool_turn("find_similar_tool"), answer("Ready"),
+                    answer(json.dumps({"recommendations": [
+                        {"anime_id": i, "explanation": "Similar"} for i in ids
+                    ]})),
+                ]
+                self.tools.execute_tool.return_value = '{"20": 1, "30": 0.5}'
+                with self.assertRaisesRegex(AgentLoopError, "backend-selected"):
+                    self.run_agent()
 
     def test_text_answer_requires_no_tools(self):
         final = answer()

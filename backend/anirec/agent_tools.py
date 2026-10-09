@@ -7,7 +7,7 @@
 # Tools
 #    ├── search_anime("Naruto")
 #    ├── find_similar(anime_id)
-#    ├── filter_anime(max_episodes=50, status="finished")
+#    ├── filter_anime(max_episodes=50)
 #    ├── personalized_rank(username, candidates)
 #    └── get_metadata(anime_ids)
 #    ↓
@@ -54,12 +54,23 @@ class FindSimilarArguments(ToolArguments):
 class FilterAnimeArguments(ToolArguments):
     sim_ids_scores: Ranking = Field(description="Ranked anime ID-to-score object from a recommendation tool; preserve order.")
     max_episodes: Annotated[int, Field(ge=1, strict=True)] | None = None
-    status: Literal["finished", "airing", "upcoming", "finished_airing", "currently_airing", "not_yet_aired"] | None = None
 
 
 class GetMetadataArguments(ToolArguments):
     recommendations: Ranking = Field(description="Ranked anime ID-to-score object from a recommendation or filtering tool.")
-    columns_to_get: Annotated[list[Name], Field(min_length=1, max_length=50)] | None = None
+    columns_to_get: Annotated[list[Name], Field(min_length=1, max_length=50)] | None = Field(
+        default=None,
+        description=(
+            "Metadata columns to return. Defaults to anime_id, title, picture_link, score. "
+            "Available columns: anime_id, title, picture_link, score, num_episodes, synopsis, "
+            "genres, mean, rank, popularity, num_list_users, num_scoring_users, media_type, "
+            "rating, studios, statistics, main_picture, recommendations, related_anime. "
+            "Fields absent from the cache return null. Use title, genres, and synopsis to "
+            "ground explanations. For 'fewer episodes than Naruto', first fetch anime_id "
+            "and num_episodes for the resolved Naruto ID, then pass num_episodes minus one "
+            "as max_episodes to filter_anime. If num_episodes is null, do not invent a limit."
+        ),
+    )
 
 
 # Explicit allowlist: model-generated names cannot access arbitrary attributes.
@@ -164,7 +175,12 @@ class AgentTools:
         negative_weight: float = 0.5,
         limit: int = 100,
     ) -> dict:
-        """Rank anime using positive examples and optional negative examples."""
+        """Rank anime using positive examples and optional negative examples.
+        Results are in descending score order. Apply any requested constraints
+        with filter_anime before fetching metadata for the final selection.
+        Python selects the first five from the latest ranking or filter result
+        (or all results if fewer than five remain); do not pick a different subset.
+        """
         sim_ids_scores = self.recommender.find_similar(positive_anime_ids, 
                                  negative_anime_ids, 
                                  negative_weight, 
@@ -177,17 +193,13 @@ class AgentTools:
         self,
         sim_ids_scores: dict[int, float],
         max_episodes: int | None = None,
-        status: str | None = None,
     ) -> dict[int, float]:
-        """Filter ranked anime without changing their existing order."""
+        """Filter anime and return eligible results in descending score order.
+        Keep this order for the final get_metadata call. Python selects the
+        first five eligible results, or all results if fewer than five remain.
+        Do not reorder candidates or select a different subset.
+        """
         anime_data = self.anime_data
-        status_aliases = {
-            "finished": "finished_airing",
-            "airing": "currently_airing",
-            "upcoming": "not_yet_aired",
-        }
-        if status is not None:
-            status = status_aliases.get(status.lower(), status.lower())
 
         def passes_filters(anime_id):
             anime = anime_data.get(str(anime_id), {})
@@ -196,13 +208,11 @@ class AgentTools:
                 num_episodes is None or num_episodes > max_episodes
             ):
                 return False
-            if status is not None and anime.get("status") != status:
-                return False
             return True
 
         return {
             anime_id: score
-            for anime_id, score in sim_ids_scores.items()
+            for anime_id, score in sorted(sim_ids_scores.items(), key=lambda item: item[1], reverse=True)
             if passes_filters(anime_id)
         }
 
@@ -211,7 +221,15 @@ class AgentTools:
         recommendations: dict[int, float],
         columns_to_get: list[str] | None = None,
     ) -> list[dict]:
-        """Attach selected metadata to ranked anime IDs and scores."""
+        """Attach selected metadata to anime IDs and scores.
+        Before ranking, use this to inspect a reference anime (for example,
+        num_episodes to determine a relative episode limit).
+        After ranking, the final metadata call uses Python's first five from
+        the latest filter_anime result, or the latest recommendation result
+        if no filter was applied. Python supplies these IDs and scores in
+        ranking order automatically; do not choose another subset.
+        Request the columns needed to ground explanations for that selection.
+        """
         columns_to_get = columns_to_get or [
             "anime_id",
             "title",

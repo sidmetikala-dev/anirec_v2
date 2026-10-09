@@ -44,11 +44,11 @@ def upload_cache_to_supabase(database_url, cache_file=None):
 class AnimeDataClient:
     CACHE_FIELDS = (
         "id,title,synopsis,mean,popularity,genres,statistics,main_picture,"
-        "related_anime,num_episodes,status,media_type"
+        "related_anime,num_episodes,media_type"
     )
     FULL_FIELDS = (
         "id,title,synopsis,mean,rank,popularity,num_list_users,"
-        "num_scoring_users,media_type,status,genres,num_episodes,rating,"
+        "num_scoring_users,media_type,genres,num_episodes,rating,"
         "recommendations,studios,statistics,main_picture,related_anime"
     )
 
@@ -179,7 +179,7 @@ class AnimeDataClient:
 
     def backfill_cache_fields(
         self,
-        fields=("num_episodes", "status", "media_type"),
+        fields=("num_episodes", "media_type"),
         max_workers=3,
         save_every=50,
     ):

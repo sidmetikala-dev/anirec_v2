@@ -50,6 +50,7 @@ function FormCard({ onResultImages }: FormCardProps) {
       onResultImages(
         results
           .filter((recommendation) => recommendation.picture_link)
+          .slice(0, 5)
           .map((recommendation) => ({
             url: recommendation.picture_link as string,
             title: recommendation.title,
