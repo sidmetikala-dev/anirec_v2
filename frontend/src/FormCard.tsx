@@ -42,7 +42,7 @@ function FormCard({ onResultImages }: FormCardProps) {
 
       const data: RecommendationResponse = await response.json()
 
-      if (!response.ok) {
+      if (!response.ok || data.error) {
         throw new Error(data.error || 'Could not get recommendations.')
       }
 

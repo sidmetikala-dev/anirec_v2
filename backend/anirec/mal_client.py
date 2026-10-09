@@ -1,5 +1,14 @@
 import requests
 
+
+class MALUserNotFoundError(ValueError):
+    """MyAnimeList could not find the requested user."""
+
+
+class MALProfileRestrictedError(ValueError):
+    """The user's anime list is inaccessible."""
+
+
 class MALClient:
     def __init__(self, client_id):
         self.headers = {
@@ -15,7 +24,7 @@ class MALClient:
         response = requests.get(url, headers=self.headers, params=params, timeout=15)
         if response.status_code != 200:
             if response.status_code == 404:
-                raise ValueError(
+                raise MALUserNotFoundError(
                     "MyAnimeList user not found. Check the username and try again."
                 )
             if response.status_code == 401:
@@ -23,7 +32,7 @@ class MALClient:
                     "MyAnimeList authentication failed. Check the MAL client ID."
                 )
             if response.status_code == 403:
-                raise ValueError(
+                raise MALProfileRestrictedError(
                     "This MyAnimeList profile or anime list is private or restricted."
                 )
             if response.status_code >= 500:

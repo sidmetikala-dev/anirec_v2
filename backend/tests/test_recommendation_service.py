@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
+from anirec.mal_client import MALClient, MALUserNotFoundError
 from anirec.agent_tools import AgentTools
 from anirec.recommendation_service import (
     get_recs_with_username, NoRatedAnimeError, build_recommendation_hash,
@@ -60,6 +61,22 @@ class RecommendationServiceTests(unittest.TestCase):
         with self.assertRaises(NoRatedAnimeError):
             get_recs_with_username("user", **self.dependencies)
         self.pool.connection.assert_not_called()
+
+    def test_missing_user_propagates_through_service_and_tool(self):
+        self.mal.get_user_data.side_effect = MALUserNotFoundError("MyAnimeList user not found.")
+        provider = partial(get_recs_with_username, **self.dependencies)
+        tools = AgentTools(self.dependencies["recommender"], self.metadata, provider)
+        with self.assertRaises(MALUserNotFoundError):
+            tools.execute_tool("get_recs_with_username_tool", {"username": "missing"})
+        self.mal.get_scores.assert_not_called()
+        self.pool.connection.assert_not_called()
+        self.model.assert_not_called()
+
+    @patch("anirec.mal_client.requests.get")
+    def test_mal_404_raises_specific_user_error(self, get):
+        get.return_value.status_code = 404
+        with self.assertRaisesRegex(MALUserNotFoundError, "user not found"):
+            MALClient("test").get_user_data("missing")
 
     def test_tool_uses_service_and_shared_metadata(self):
         provider = partial(get_recs_with_username, **self.dependencies)

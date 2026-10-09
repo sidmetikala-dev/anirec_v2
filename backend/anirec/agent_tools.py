@@ -135,7 +135,12 @@ class AgentTools:
         return json.dumps(result, allow_nan=False)
 
     def get_recs_with_username_tool(self, username: str, limit: int = 50) -> dict:
-        """Only use if username is given.
+        """Get personalized recommendations for a MyAnimeList username.
+        A bare handle such as 'chekkit' may be treated as a username; the user
+        need not explicitly say 'my username is'. Try this tool for a likely
+        handle, but do not treat an anime title or a full request as a username.
+        A missing user, restricted list, or lack of eligible ratings returns
+        an error. Explain that error instead of inventing recommendations.
         Return personalized anime IDs and scores in ranked order."""
         result = self.recommendation_provider(username, top_k=limit)
         return {
