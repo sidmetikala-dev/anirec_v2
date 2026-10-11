@@ -1,0 +1,17 @@
+[
+  {"id":"bare_username","prompt":"chekkit","required":["get_recs_with_username_tool"],"forbidden":["filter_anime"]},
+  {"id":"explicit_username","prompt":"My MAL username is chekkit","required":["get_recs_with_username_tool"],"forbidden":["filter_anime"]},
+  {"id":"naruto","prompt":"anime similar to Naruto","required":["lookup_anime_ids","find_similar_tool"],"forbidden":["filter_anime"]},
+  {"id":"death_note","prompt":"anime like Death Note","required":["lookup_anime_ids","find_similar_tool"],"forbidden":["filter_anime"]},
+  {"id":"black_clover","prompt":"anime similar to Black Clover","required":["lookup_anime_ids","find_similar_tool"],"forbidden":["filter_anime"]},
+  {"id":"relative_episodes","prompt":"anime similar to Naruto but fewer episodes","required":["get_metadata","find_similar_tool","filter_anime"],"max_episodes":219,"reference_id":20},
+  {"id":"under_20","prompt":"anime like Naruto with under 20 episodes","required":["filter_anime"],"max_episodes":19},
+  {"id":"at_most_20","prompt":"anime like Naruto with at most 20 episodes","required":["filter_anime"],"max_episodes":20},
+  {"id":"username_under_25","prompt":"chekkit, but under 25 episodes","required":["get_recs_with_username_tool","filter_anime"],"max_episodes":24},
+  {"id":"username_12","prompt":"recommendations for MAL username chekkit, at most 12 episodes","required":["get_recs_with_username_tool","filter_anime"],"max_episodes":12},
+  {"id":"missing_user","prompt":"recommendations for MAL username anirec_missing_fixture_user","required":["get_recs_with_username_tool"],"expect_error":true,"error_contains":"not found"},
+  {"id":"private_user","prompt":"recommendations for MAL username anirec_private_fixture_user","expect_error":true,"error_contains":"private"},
+  {"id":"empty_user","prompt":"recommendations for MAL username anirec_empty_fixture_user","expect_error":true,"error_contains":"scored"},
+  {"id":"exclude_naruto","prompt":"anime like Black Clover but not Naruto or Naruto Shippuuden","excluded_ids":[20,1735],"required":["find_similar_tool"]},
+  {"id":"niche","prompt":"anime like Death Note but more niche","known_limitation":true,"unsupported_constraint":"niche"}
+]

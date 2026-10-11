@@ -52,7 +52,7 @@ class AgentToolsTests(unittest.TestCase):
         search.return_value = [{"anime_id": 20, "anime_name": "Naruto"}]
         for names in ("Naruto", ["Naruto", "Death Note"]):
             with self.subTest(names=names):
-                self.assertEqual(self.tools.search_anime_tool(names, limit=3), search.return_value)
+                self.assertEqual(self.tools.lookup_anime_ids(names, limit=3), search.return_value)
                 search.assert_called_with(names, limit=3)
 
     def test_similarity_forwards_positive_and_negative_preferences(self):
@@ -82,6 +82,9 @@ class AgentToolsTests(unittest.TestCase):
         self.assertEqual(list(result.items()), [(30, 9.5), (20, 8.5), (40, 8.0)])
 
     def test_unknown_episode_counts_and_missing_metadata_fail_episode_filter(self):
+        self.metadata["60"] = {"num_episodes": 0}
+        self.metadata["70"] = {"num_episodes": -1}
+        self.assertEqual(self.tools.filter_anime({60: 1.0, 70: 0.9}, max_episodes=20), {})
         self.assertEqual(self.tools.filter_anime({50: 1.0, 999: 0.5}, max_episodes=50), {})
         self.assertEqual(self.tools.filter_anime(self.ranked, max_episodes=1), {})
         self.assertEqual(self.tools.filter_anime({}, max_episodes=50), {})
@@ -103,18 +106,18 @@ class AgentToolsTests(unittest.TestCase):
         self.assertEqual(self.tools.get_metadata({}), [])
 
     def test_sdk_schemas_export_all_tools_and_formats(self):
-        expected = {"get_recs_with_username_tool", "search_anime_tool", "find_similar_tool",
+        expected = {"get_recs_with_username_tool", "lookup_anime_ids", "find_similar_tool",
                     "filter_anime", "get_metadata"}
-        for format in ("chat_completions", "responses", "anthropic"):
+        for format in ("chat_completions", "responses", "anthropic", "groq"):
             schemas = json.loads(json.dumps(self.tools.tool_schemas(format)))
-            definitions = [tool["function"] for tool in schemas] if format == "chat_completions" else schemas
+            definitions = [tool["function"] for tool in schemas] if format in ("chat_completions", "groq") else schemas
             self.assertEqual({tool["name"] for tool in definitions}, expected)
             for tool in definitions:
                 schema = tool["input_schema" if format == "anthropic" else "parameters"]
                 self.assertFalse(schema["additionalProperties"])
                 self.assertTrue(tool["description"])
                 if tool["name"] == "filter_anime":
-                    self.assertEqual(set(schema["properties"]), {"sim_ids_scores", "max_episodes"})
+                    self.assertEqual(set(schema["properties"]), {"max_episodes"} if format == "groq" else {"sim_ids_scores", "max_episodes"})
         with self.assertRaises(ValueError):
             self.tools.tool_schemas("invalid")
 
@@ -131,9 +134,22 @@ class AgentToolsTests(unittest.TestCase):
         })
         self.assertEqual(list(json.loads(filtered)), ["30", "20"])
         output = self.tools.execute_tool("get_metadata", {
-            "recommendations": json.loads(filtered),
+            "anime_ids": [int(anime_id) for anime_id in json.loads(filtered)],
         })
         self.assertEqual([row["anime_id"] for row in json.loads(output)], [30, 20])
+
+    def test_metadata_tool_uses_id_list_and_keeps_python_ranking_api(self):
+        result = json.loads(self.tools.execute_tool("get_metadata", {
+            "anime_ids": [30], "columns_to_get": ["anime_id", "num_episodes"]}))
+        self.assertEqual(result, [{"anime_id":30, "num_episodes":12}])
+        schema = next(t["function"]["parameters"] for t in self.tools.tool_schemas("groq")
+                      if t["function"]["name"] == "get_metadata")
+        self.assertNotIn("recommendations", schema["properties"])
+        self.assertEqual(schema["properties"]["anime_ids"]["type"], "array")
+        for args in ({"anime_ids":["30"]}, {"anime_ids":[True]}, {"anime_ids":[-1]},
+                     {"recommendations":{"30":1}}):
+            self.assertEqual(json.loads(self.tools.execute_tool("get_metadata", args))["error"]["code"],
+                             "invalid_arguments")
 
     def test_sdk_rejects_invalid_arguments_before_backend_execution(self):
         for name, arguments in (
@@ -144,10 +160,12 @@ class AgentToolsTests(unittest.TestCase):
             ("find_similar_tool", {"positive_anime_ids": []}),
             ("find_similar_tool", {"positive_anime_ids": [-1]}),
             ("find_similar_tool", {"positive_anime_ids": [1], "negative_weight": 2}),
-            ("search_anime_tool", {"anime_names": []}),
+            ("lookup_anime_ids", {"anime_names": []}),
             ("filter_anime", {"sim_ids_scores": {"bad": 1}}),
             ("filter_anime", {"sim_ids_scores": {"30": float("nan")}}),
-            ("get_metadata", {"recommendations": {}, "columns_to_get": []}),
+            ("get_metadata", {"anime_ids": [30], "columns_to_get": []}),
+            ("get_metadata", {"anime_ids": [30], "columns_to_get": ["episodes"]}),
+            ("get_metadata", {"anime_ids": [30], "columns_to_get": ["type"]}),
             ("get_recs_with_username_tool", "{broken json"),
             ("get_recs_with_username_tool", "[]"),
         ):
@@ -166,7 +184,7 @@ class AgentToolsTests(unittest.TestCase):
 
     def test_metadata_cannot_overwrite_ranked_score_or_id(self):
         self.metadata["30"].update({"score": 1, "anime_id": 999})
-        result = self.tools.execute_tool("get_metadata", {"recommendations": {"30": 9.5}})
+        result = json.dumps(self.tools.get_metadata({30: 9.5}))
         self.assertEqual(json.loads(result)[0]["score"], 9.5)
         self.assertEqual(json.loads(result)[0]["anime_id"], 30)
 

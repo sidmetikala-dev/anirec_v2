@@ -15,17 +15,17 @@ interface FormCardProps {
 }
 
 function FormCard({ onResultImages }: FormCardProps) {
-  const [username, setUsername] = useState('')
+  const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const trimmedUsername = username.trim()
-    if (!trimmedUsername) {
+    const trimmedPrompt = prompt.trim()
+    if (!trimmedPrompt) {
       onResultImages([])
-      setError('Enter a MAL username.')
+      setError('Enter a recommendation request or MAL username.')
       return
     }
 
@@ -34,11 +34,8 @@ function FormCard({ onResultImages }: FormCardProps) {
     onResultImages([])
 
     try {
-      const response = await fetch('/recs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: trimmedUsername }),
-      })
+      const params = new URLSearchParams({ prompt: trimmedPrompt })
+      const response = await fetch(`/agent/?${params}`)
 
       const data: RecommendationResponse = await response.json()
 
@@ -47,6 +44,9 @@ function FormCard({ onResultImages }: FormCardProps) {
       }
 
       const results = data.recommendations ?? []
+      if (results.length === 0) {
+        throw new Error('No matching recommendations found. Try a different request.')
+      }
       onResultImages(
         results
           .filter((recommendation) => recommendation.picture_link)
@@ -71,13 +71,15 @@ function FormCard({ onResultImages }: FormCardProps) {
       <h1>AniRecs</h1>
 
       <form className="form-card" onSubmit={handleSubmit}>
-        <label htmlFor="username">MAL Username</label>
+        <label htmlFor="prompt">What would you like to watch?</label>
 
         <input
-          id="username"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          placeholder="Username"
+          id="prompt"
+          value={prompt}
+          onChange={(event) => setPrompt(event.target.value)}
+          placeholder="Anime like Naruto, or your MAL username"
+          maxLength={4000}
+          disabled={loading}
         />
 
         <button className="fetch" disabled={loading}>

@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/agent/:path*",
+      "destination": "https://anirec-143802722214.us-east4.run.app/agent/:path*"
+    },
+    {
       "source": "/recs/:path*",
       "destination": "https://anirec-143802722214.us-east4.run.app/recs/:path*"
     }
