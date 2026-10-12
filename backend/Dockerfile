@@ -16,5 +16,5 @@ COPY . .
 # 6. Set the default fallback port
 ENV PORT=5000
 
-# 7. Start your Flask application
-CMD ["python", "app.py"]
+# 7. Start your Flask application using Gunicorn
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "app:app"]
