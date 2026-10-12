@@ -1,11 +1,10 @@
 import atexit
-import os
 
 import httpx
 from flask import Blueprint, current_app, jsonify, request
 import groq
 import openai
-from ..llm_client import create_client, provider_config
+from ..llm_client import create_client, provider_config, redact_api_keys
 
 from ..agent_service import AgentAnswer, AgentLoopError, run_agent
 
@@ -55,11 +54,7 @@ def agent():
                 "picture_link": (anime.get("main_picture") or {}).get("medium"),
             })
     except (groq.APIStatusError, openai.APIStatusError) as exc:
-        message = str(exc)
-        for key_name in ("GROQ_API_KEY", "GEMINI_API_KEY"):
-            api_key = os.getenv(key_name)
-            if api_key:
-                message = message.replace(api_key, "[REDACTED]")
+        message = redact_api_keys(str(exc))
         current_app.logger.warning("LLM request failed with status %s: %s", exc.status_code, message)
         if exc.status_code == 404:
             return jsonify(recommendations=[], error="The configured model is unavailable. Check LLM_MODEL and provider access."), 502

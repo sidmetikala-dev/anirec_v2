@@ -89,8 +89,23 @@ class GeminiClient(OllamaClient):
         return self.client.chat.completions.create(**kwargs)
 
 
+API_KEY_MODES = {
+    "gemini-unbilled": ("gemini", "GEMINI_API_KEY_UNBILLED"),
+    "gemini-billed": ("gemini", "GEMINI_API_KEY_BILLED"),
+    "groq-unbilled": ("groq", "GROQ_API_KEY_UNBILLED"),
+}
+
+
+def api_key_mode():
+    mode = os.getenv("API_KEY_MODE", "").strip().lower()
+    if mode and mode not in API_KEY_MODES:
+        raise ValueError("API_KEY_MODE must be " + ", ".join(API_KEY_MODES))
+    return mode
+
+
 def provider_config():
-    provider = os.getenv("LLM_PROVIDER", "groq").strip().lower()
+    mode = api_key_mode()
+    provider = API_KEY_MODES[mode][0] if mode else os.getenv("LLM_PROVIDER", "groq").strip().lower()
     if provider not in {"groq", "ollama", "gemini"}:
         raise ValueError("LLM_PROVIDER must be groq, ollama, or gemini")
     default = {"groq": os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
@@ -99,12 +114,35 @@ def provider_config():
     return provider, os.getenv("LLM_MODEL") or default
 
 
+def provider_api_key(provider):
+    mode = api_key_mode()
+    if mode:
+        selected_provider, key_name = API_KEY_MODES[mode]
+        if provider != selected_provider:
+            raise ValueError(f"API_KEY_MODE={mode} selects {selected_provider}, not {provider}")
+    else:
+        key_name = f"{provider.upper()}_API_KEY_UNBILLED"
+        if key_name not in os.environ:
+            key_name = f"{provider.upper()}_API_KEY"
+    key = os.getenv(key_name)
+    if not key or not key.strip():
+        raise ValueError(f"Set {key_name}" + (f" for API_KEY_MODE={mode}" if mode else ""))
+    return key.strip()
+
+
+def redact_api_keys(message):
+    for name, value in os.environ.items():
+        if re.search(r"(?:^|_)API_KEY(?:_|$)", name) and value.strip():
+            message = message.replace(value, "[REDACTED]").replace(value.strip(), "[REDACTED]")
+    return message
+
+
 def create_client(provider):
     if provider == "groq":
-        return Groq(api_key=os.environ["GROQ_API_KEY"], timeout=30.0, max_retries=0)
+        return Groq(api_key=provider_api_key(provider), timeout=30.0, max_retries=0)
     if provider == "gemini":
         from openai import OpenAI
-        return GeminiClient(OpenAI(api_key=os.environ["GEMINI_API_KEY"],
+        return GeminiClient(OpenAI(api_key=provider_api_key(provider),
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             timeout=60.0, max_retries=0))
     if provider == "ollama":

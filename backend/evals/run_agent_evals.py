@@ -14,7 +14,7 @@ import time
 from types import SimpleNamespace
 
 from dotenv import load_dotenv
-from anirec.llm_client import create_client, provider_config
+from anirec.llm_client import create_client, provider_config, redact_api_keys
 from unittest.mock import patch
 
 from anirec.agent_service import run_agent
@@ -110,11 +110,7 @@ class RecordedClient:
             body = getattr(exc, "body", None)
             error = body.get("error", body) if isinstance(body, dict) else None
             if isinstance(error, dict) and isinstance(error.get("message"), str):
-                message = error["message"]
-                for key_name in ("GROQ_API_KEY", "GEMINI_API_KEY"):
-                    secret = os.getenv(key_name)
-                    if secret:
-                        message = message.replace(secret, "[REDACTED]")
+                message = redact_api_keys(error["message"])
                 record["provider_message"] = message[:1500]
             raise
         finally:

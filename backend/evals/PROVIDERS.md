@@ -20,7 +20,8 @@ For Cloud Run, configure its environment with:
 ```dotenv
 LLM_PROVIDER=groq
 LLM_MODEL=openai/gpt-oss-20b
-GROQ_API_KEY=<your secret>
+GROQ_API_KEY_UNBILLED=<your secret>
+API_KEY_MODE=groq-unbilled
 ```
 
 Without LLM_PROVIDER, Groq remains the default. Without LLM_MODEL, Groq uses
@@ -40,8 +41,27 @@ Reports include a trace of all attempted tool calls, including calls rejected be
 execution, their errors, and corrective messages for answers without a backend
 ranking. The tools list continues to show calls that reached tool execution.
 
-For Gemini, set LLM_PROVIDER=gemini, LLM_MODEL to a model available to your
-project, and GEMINI_API_KEY. GEMINI_MODEL is the fallback when LLM_MODEL is absent.
+For Gemini and Groq, configure the shared switch in backend/.env:
+
+```dotenv
+API_KEY_MODE=gemini-unbilled
+GEMINI_API_KEY_UNBILLED=<your unbilled key>
+GEMINI_API_KEY_BILLED=<your billed key>
+GROQ_API_KEY_UNBILLED=<your Groq key>
+GEMINI_MODEL=gemini-3.5-flash-lite
+GROQ_MODEL=openai/gpt-oss-20b
+LLM_MODEL=
+```
+
+Set API_KEY_MODE to gemini-unbilled, gemini-billed, or groq-unbilled and restart
+Flask. Evaluations use the same setting on their next run. The mode selects both
+the provider and key, overriding LLM_PROVIDER. Leave LLM_MODEL blank to use
+GEMINI_MODEL or GROQ_MODEL automatically; a nonempty LLM_MODEL overrides either.
+Missing selected keys and invalid modes fail without falling back to another key.
+When API_KEY_MODE is unset or blank, LLM_PROVIDER selects the provider (including
+ollama), and cloud providers use their unbilled key or legacy API key variable.
+For local Ollama, clear API_KEY_MODE and set LLM_PROVIDER=ollama.
+
 The client uses Google's OpenAI-compatible endpoint and the existing shared tool
 schemas. Thought-signature extensions on tool calls are retained in history.
 

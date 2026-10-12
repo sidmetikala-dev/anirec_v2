@@ -7,10 +7,44 @@ import httpx
 from openai import OpenAI
 
 from anirec.agent_tools import AgentTools
-from anirec.llm_client import OllamaClient, GeminiClient, create_client, create_completion, provider_config
+from anirec.llm_client import OllamaClient, GeminiClient, create_client, create_completion, provider_config, provider_api_key, redact_api_keys
 
 
 class ProviderTests(unittest.TestCase):
+    def test_api_key_modes_select_provider_key_and_model(self):
+        keys = {"GEMINI_API_KEY_BILLED": "paid-test", "GEMINI_API_KEY_UNBILLED": "free-test",
+                "GROQ_API_KEY_UNBILLED": "groq-test", "GEMINI_MODEL": "gemini-model",
+                "GROQ_MODEL": "groq-model", "LLM_PROVIDER": "gemini", "LLM_MODEL": ""}
+        for mode, provider, key in [("gemini-unbilled", "gemini", "free-test"),
+                                    ("gemini-billed", "gemini", "paid-test"),
+                                    ("groq-unbilled", "groq", "groq-test")]:
+            with self.subTest(mode=mode), patch.dict(os.environ, dict(keys, API_KEY_MODE=mode), clear=True):
+                self.assertEqual(provider_config(), (provider, f"{provider}-model"))
+                self.assertEqual(provider_api_key(provider), key)
+                with patch("openai.OpenAI") as gemini, patch("anirec.llm_client.Groq") as groq:
+                    create_client(provider)
+                    self.assertEqual((gemini if provider == "gemini" else groq).call_args.kwargs["api_key"], key)
+
+    def test_invalid_mode_missing_key_and_provider_mismatch(self):
+        with patch.dict(os.environ, {"API_KEY_MODE": "typo"}, clear=True):
+            with self.assertRaises(ValueError):
+                provider_config()
+        with patch.dict(os.environ, {"API_KEY_MODE": "gemini-unbilled",
+                                    "GEMINI_API_KEY_BILLED": "paid", "GEMINI_API_KEY": "legacy"}, clear=True):
+            with self.assertRaisesRegex(ValueError, "GEMINI_API_KEY_UNBILLED"):
+                provider_api_key("gemini")
+            with self.assertRaises(ValueError):
+                create_client("groq")
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "legacy-test"}, clear=True):
+            self.assertEqual(provider_api_key("gemini"), "legacy-test")
+
+    def test_redacts_all_api_keys(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY_BILLED": "paid-secret",
+                                    "GROQ_API_KEY_UNBILLED": "groq-secret",
+                                    "FUTURE_API_KEY": "future-secret", "EMPTY_API_KEY": ""}, clear=True):
+            self.assertEqual(redact_api_keys("paid-secret groq-secret future-secret"),
+                             "[REDACTED] [REDACTED] [REDACTED]")
+
     def test_gemini_config_and_supported_request_arguments(self):
         with patch.dict(os.environ, {"LLM_PROVIDER":"gemini", "GEMINI_MODEL":"configured"}, clear=True):
             self.assertEqual(provider_config(), ("gemini", "configured"))
