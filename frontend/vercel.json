@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/agent/:path*",
-      "destination": "https://anirec-143802722214.us-east4.run.app/agent/:path*"
+      "destination": "http://3.131.82.204/agent/:path*"
     },
     {
       "source": "/recs/:path*",
-      "destination": "https://anirec-143802722214.us-east4.run.app/recs/:path*"
+      "destination": "http://3.131.82.204/recs/:path*"
     }
   ]
 }

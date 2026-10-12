@@ -190,7 +190,7 @@ def run_agent(client, agent_tools, prompt, *, model="llama-3.1-8b-instant",
             event = {"type": "tool_call", "tool_call_id": call.id, "name": name,
                      "raw_arguments": call.function.arguments, "executed": False}
             record(event)
-            print(f"[agent] {name} arguments: {call.function.arguments}", flush=True)
+            # print(f"[agent] {name} arguments: {call.function.arguments}", flush=True)
             if len(calls) > 1:
                 result = {"error": {"code": "one_tool_per_turn",
                           "message": "No tools were executed. Request exactly one tool and wait for its result."}}
@@ -217,7 +217,7 @@ def run_agent(client, agent_tools, prompt, *, model="llama-3.1-8b-instant",
                                                      "Use only integer IDs returned by successful searches in this request.",
                                           "unresolved_ids": unresolved}}
                                 event["result"] = result
-                                print(f"[agent] {name} result: {json.dumps(result)}", flush=True)
+                                # print(f"[agent] {name} result: {json.dumps(result)}", flush=True)
                                 results.append({"role": "tool", "tool_call_id": call.id,
                                                 "content": json.dumps(result)})
                                 continue
@@ -229,7 +229,7 @@ def run_agent(client, agent_tools, prompt, *, model="llama-3.1-8b-instant",
                         event["result"] = result
                         results.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(result)})
                         continue
-                    print(f"[agent] {name} effective arguments: {json.dumps(arguments, ensure_ascii=False)}", flush=True)
+                    # print(f"[agent] {name} effective arguments: {json.dumps(arguments, ensure_ascii=False)}", flush=True)
                     event["effective_arguments"] = dict(arguments)
                     event["executed"] = True
                     result = json.loads(agent_tools.execute_tool(name, arguments))
@@ -280,7 +280,7 @@ def run_agent(client, agent_tools, prompt, *, model="llama-3.1-8b-instant",
                 if not isinstance(result, dict):
                     result = {"result": result}
             event["result"] = result
-            print(f"[agent] {name} result: {json.dumps(result, ensure_ascii=False)}", flush=True)
+            # print(f"[agent] {name} result: {json.dumps(result, ensure_ascii=False)}", flush=True)
             results.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(result)})
         contents.extend(results)
     raise AgentLoopError(f"The agent did not finish within {max_turns} model turns.")
