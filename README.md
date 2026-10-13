@@ -2,36 +2,36 @@
 
 [Live Demo](https://anirec-app.vercel.app/)
 
-AniRec v2 is a full-stack personalized anime recommendation application built with MyAnimeList data. The system combines a React/TypeScript frontend, Flask REST API, PostgreSQL persistence and caching, and a personalized recommendation pipeline evaluated across unseen users.
+AniRec v2 is a full-stack personalized anime recommendation application built with MyAnimeList data. The system combines a React/TypeScript frontend, Flask/Gunicorn backend, PostgreSQL persistence and caching, a personalized recommendation pipeline, and an LLM-powered tool-calling layer for natural-language recommendation requests.
 
-The application transforms user rating histories and cached anime metadata into ranked recommendations through feature engineering, model comparison, offline evaluation, and production deployment.
+The application transforms user rating histories and cached anime metadata into ranked recommendations through feature engineering, model comparison, offline evaluation, backend ranking, and agent-based orchestration.
 
 ## Architecture
 
 AniRec is split into separate frontend and backend applications:
 
 - **Frontend:** React + TypeScript, deployed on Vercel
-- **Backend:** Python + Flask REST API, deployed on Google Cloud Run
+- **Backend:** Python + Flask + Gunicorn, deployed on AWS EC2
 - **Database:** Supabase PostgreSQL
 - **Recommendation engine:** scikit-learn
+- **LLM integration:** Gemini API with provider abstraction
 - **Data source:** MyAnimeList API
 
-The frontend communicates with the Flask API to retrieve user data and generate personalized recommendation results.
+The frontend sends either MyAnimeList usernames or natural-language recommendation prompts to the backend. The backend then handles recommendation generation, tool execution, filtering, ranking, metadata retrieval, caching, and structured response generation.
 
 ## Goals
 
-- Build a stronger second version of the original AniRec project
-- Generate personalized recommendations from a cached anime catalog
+- Generate personalized recommendations from MyAnimeList rating histories
+- Support natural-language recommendation requests
 - Compare multiple recommendation approaches under the same evaluation protocol
 - Evaluate recommendation quality on unseen users using ranking metrics
+- Keep ranking and filtering logic deterministic in Python
 - Build a production-ready backend API and persistence layer
-- Develop a modern React/TypeScript frontend
+- Develop a React/TypeScript frontend
 - Deploy the frontend and backend independently
-- Continue expanding the application beyond username-based recommendations
+- Evaluate both recommendation quality and agent behavior
 
-## Recommendation Pipeline
-
-The current recommendation pipeline works as follows:
+## Recommendation System
 
 ### 1. Data collection and caching
 
@@ -47,28 +47,28 @@ Each anime is represented using:
 - normalized numerical metadata
 - multi-hot genre and theme indicators
 
-Anime already rated by the user are excluded from the candidate set before ranking.
+Anime already rated by the user are excluded from personalized recommendation results.
 
 ### 3. Personalized recommendation
 
-The production model uses distance-weighted cosine K-Nearest Neighbors regression.
+The production recommender uses distance-weighted cosine K-Nearest Neighbors regression.
 
 For each user:
 
 - completed and scored anime are used as training examples
 - candidate anime are compared against the user's rated titles
 - more similar rated anime receive greater influence
-- predicted user scores are generated for unseen titles
-- candidates are ranked by predicted preference
+- predicted scores are generated for unseen titles
+- candidates are ranked by predicted user preference
 
-### 4. Evaluation
+### 4. Offline evaluation
 
 For each evaluation user:
 
 - 25% of rated anime are randomly held out
 - the model is trained using the remaining ratings
 - recommendations are evaluated against the held-out titles
-- identical splits are used across models for fair comparison
+- identical splits are used across compared models
 
 Ranking quality is measured using:
 
@@ -78,7 +78,7 @@ Ranking quality is measured using:
 
 KNN was compared against Bayesian Ridge and a non-personalized global-mean baseline.
 
-## Final Model
+## Final Recommendation Model
 
 The strongest evaluated configuration was **distance-weighted cosine KNN** using numerical metadata and genre indicators.
 
@@ -157,21 +157,113 @@ Synopsis SVD features produced only a negligible Precision@5 improvement over nu
 
 Bayesian Ridge substantially outperformed the global baseline but did not match KNN on the final unseen-user evaluation.
 
+## Agentic Recommendation Layer
+
+AniRec also supports natural-language recommendation requests through a tool-calling agent.
+
+Example requests include:
+
+- "Find anime similar to Naruto"
+- "Find something like Bleach but with fewer episodes"
+- "Recommend anime based on my MyAnimeList profile"
+- "Give me shows similar to two anime I liked"
+
+The agent does not directly generate recommendation rankings. Instead, it orchestrates backend tools that operate on the existing recommendation system.
+
+### Available agent operations
+
+The agent can:
+
+- resolve anime titles to MyAnimeList IDs
+- retrieve personalized recommendations from a username
+- find anime similar to one or more reference titles
+- filter ranked candidates by episode count
+- retrieve metadata for selected anime
+- generate grounded explanations for final recommendations
+
+Tool arguments are validated using Pydantic before execution.
+
+## Agent Execution
+
+The agent uses sequential tool execution.
+
+For each request:
+
+1. The model receives the user prompt and available tool schemas.
+2. It requests at most one tool per turn.
+3. The backend validates and executes the tool.
+4. The result is returned to the model.
+5. The model decides the next required tool.
+6. Python stores the authoritative ranking.
+7. The backend selects the top five eligible results.
+8. Final metadata is fetched locally.
+9. The LLM generates grounded explanations for the backend-selected recommendations.
+10. The final response is validated against a structured schema before being returned to the frontend.
+
+The LLM is not allowed to reorder, replace, invent, or remove backend-selected recommendations.
+
+## Agent Reliability
+
+The agent layer includes several safeguards:
+
+- Pydantic validation for tool arguments
+- sequential single-tool execution
+- bounded model turns
+- malformed tool-call recovery
+- premature-answer recovery
+- rejection of unresolved anime IDs
+- rejection of filtering before a ranking exists
+- backend-controlled ranking and top-five selection
+- validation of final recommendation IDs
+- structured JSON output
+- provider error handling
+- API key redaction in logs and evaluation output
+
+The backend preserves ranking authority so that model output cannot silently change recommendation order.
+
+## Agent Evaluation
+
+AniRec includes an evaluation framework for live agent runs.
+
+Evaluation traces can record:
+
+- tools attempted
+- raw and effective tool arguments
+- rejected tool calls
+- recovery attempts
+- final responses
+- request latency
+- token usage
+
+The evaluation framework is designed to measure:
+
+- end-to-end task success
+- tool-selection accuracy
+- constraint satisfaction
+- ranking preservation
+- malformed-call rate
+- recovery success rate
+- latency
+- token efficiency
+
 ## Backend
 
-The backend is implemented as a Flask REST API and deployed independently on Google Cloud Run.
+The backend is implemented using Flask and served with Gunicorn on AWS EC2.
 
 Its responsibilities include:
 
 - retrieving MyAnimeList user rating histories
 - loading cached anime metadata and features
 - generating personalized recommendations
-- filtering already-watched anime
-- returning ranked results to the frontend
+- executing agent tools
+- filtering ranked candidates
+- enforcing deterministic ranking
+- returning structured recommendation results
 - storing recommendation history
 - caching repeated recommendation requests
+- handling LLM provider failures
 
-The project also includes a multithreaded ingestion pipeline that concurrently retrieves anime metadata while handling pagination, failures, rate limits, and checkpointing.
+The project also includes a multithreaded ingestion pipeline that retrieves anime metadata while handling pagination, failures, rate limits, and checkpointing.
 
 ## PostgreSQL Persistence and Caching
 
@@ -194,17 +286,32 @@ Repeated requests can reuse cached results instead of performing redundant recom
 
 ## Frontend
 
-The frontend was rebuilt using React and TypeScript and is deployed separately on Vercel.
+The frontend is built with React and TypeScript and deployed on Vercel.
 
-It communicates with the Flask backend through REST API requests and provides the user-facing interface for:
+It supports:
 
-- entering MyAnimeList usernames
-- requesting recommendations
-- displaying ranked anime results
-- presenting recommendation metadata
-- handling loading and API error states
+- MyAnimeList username-based recommendations
+- natural-language recommendation prompts
+- ranked recommendation results
+- anime images and metadata
+- loading states
+- backend and provider error messages
 
-Separating the frontend and backend allows both applications to be developed and deployed independently.
+The frontend communicates with the AWS-hosted Flask API through REST requests.
+
+## LLM Provider Support
+
+The agent layer uses a provider-independent orchestration interface.
+
+Current provider configuration supports:
+
+- Gemini
+- Groq
+- local Ollama-based models
+
+The provider can be selected through backend configuration without changing the frontend response format.
+
+Gemini is used for the deployed recommendation-agent workflow.
 
 ## Data Source
 
@@ -215,6 +322,7 @@ AniRec uses the MyAnimeList API to:
 - retrieve anime metadata
 - build and maintain the recommendation corpus
 - generate user-specific training data
+- resolve anime titles for natural-language recommendation requests
 
 ## Project Structure
 
@@ -222,10 +330,15 @@ AniRec uses the MyAnimeList API to:
 AniRec/
 ├── backend/
 │   ├── Flask API
+│   ├── Gunicorn server
+│   ├── agent orchestration
+│   ├── agent tools
+│   ├── LLM provider client
 │   ├── recommendation pipeline
 │   ├── data ingestion
 │   ├── feature engineering
 │   ├── model evaluation
+│   ├── agent evaluation
 │   └── PostgreSQL persistence
 │
 └── frontend/
