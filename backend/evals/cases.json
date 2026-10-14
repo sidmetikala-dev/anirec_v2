@@ -13,5 +13,6 @@
   {"id":"private_user","prompt":"recommendations for MAL username anirec_private_fixture_user","expect_error":true,"error_contains":"private"},
   {"id":"empty_user","prompt":"recommendations for MAL username anirec_empty_fixture_user","expect_error":true,"error_contains":"scored"},
   {"id":"exclude_naruto","prompt":"anime like Black Clover but not Naruto or Naruto Shippuuden","excluded_ids":[20,1735],"required":["find_similar_tool"]},
+  {"id":"not_user","prompt":"aaa","required":["get_recs_with_username_tool"]}
   {"id":"niche","prompt":"anime like Death Note but more niche","known_limitation":true,"unsupported_constraint":"niche"}
 ]

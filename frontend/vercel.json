@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/agent/:path*",
-      "destination": "http://3.131.82.204/agent/:path*"
+      "destination": "http://77.113.87.96/agent/:path*"
     },
     {
       "source": "/recs/:path*",
-      "destination": "http://3.131.82.204/recs/:path*"
+      "destination": "http://77.113.87.96/recs/:path*"
     }
   ]
 }
