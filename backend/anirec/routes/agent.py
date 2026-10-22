@@ -26,7 +26,7 @@ def init_agent_tools(app):
     app.logger.info("Agent provider=%s model=%s", provider, app.config["LLM_MODEL"])
 
 
-@agent_py.route("/", methods=["GET"])
+@agent_py.route("/", methods=["GET"], strict_slashes=False)
 def agent():
     prompt = request.args.get("prompt", "Find me 5 anime similar to Naruto").strip()
     if not prompt or len(prompt) > 4000:
