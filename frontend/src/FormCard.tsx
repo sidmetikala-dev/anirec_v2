@@ -35,7 +35,7 @@ function FormCard({ onResultImages }: FormCardProps) {
 
     try {
       const params = new URLSearchParams({ prompt: trimmedPrompt })
-      const response = await fetch(`/agent?${params}`)
+      const response = await fetch(`/agent/?${params}`)
 
       const data: RecommendationResponse = await response.json()
 
