@@ -462,7 +462,7 @@ class AgentRouteTests(unittest.TestCase):
         contents = self.model_client.chat.completions.create.call_args.kwargs["messages"]
         self.assertIn("Original request: Suggest anime\n", contents[1]["content"])
 
-    def test_route_enriches_ids_and_omits_explanations(self):
+    def test_route_enriches_ids_and_includes_details(self):
         payload = {"recommendations": [
             {"anime_id": 30, "explanation": "Similar themes"},
             {"anime_id": 20, "explanation": "Similar setting"},
@@ -473,8 +473,12 @@ class AgentRouteTests(unittest.TestCase):
         result = self.http.get("/agent/")
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json, {"recommendations": [
-            {"anime_id": 30, "title": "Anime Thirty", "picture_link": "https://example.com/30.jpg"},
-            {"anime_id": 20, "title": "Anime Twenty", "picture_link": None},
+            {"anime_id": 30, "title": "Anime Thirty", "picture_link": "https://example.com/30.jpg",
+             "explanation": "Similar themes", "synopsis": None, "genres": [],
+             "mean_rating": None, "num_list_users": None, "num_episodes": None},
+            {"anime_id": 20, "title": "Anime Twenty", "picture_link": None,
+             "explanation": "Similar setting", "synopsis": None, "genres": [],
+             "mean_rating": None, "num_list_users": None, "num_episodes": None},
         ]})
 
     def test_missing_metadata_returns_contract_error(self):

@@ -13,6 +13,12 @@ export interface Image {
   url: string;
   title: string;
   anime_id?: number;
+  agent_explanation?: string;
+  anime_synopsis?: string;
+  anime_genres?: string[];
+  anime_mean_rating?: number;
+  anime_num_episodes?: number;
+  members?: number;
 }
 
 const images: Image[] = [

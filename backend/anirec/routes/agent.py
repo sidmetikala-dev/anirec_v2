@@ -48,9 +48,16 @@ def agent():
             anime = anime_data.get(str(recommendation.anime_id))
             if not anime or not isinstance(anime.get("title"), str) or not anime["title"]:
                 raise AgentLoopError("Recommendation metadata is unavailable.")
+            genres = [genre["name"] for genre in (anime.get("genres") or []) if genre.get("name")]
             recommendations.append({
                 "anime_id": recommendation.anime_id,
                 "title": anime["title"],
+                "explanation": recommendation.explanation,
+                "synopsis": anime.get("synopsis"),
+                "genres": genres,
+                "mean_rating": anime.get("mean"),
+                "num_list_users": (anime.get("statistics") or {}).get("num_list_users"),
+                "num_episodes": anime.get("num_episodes"),
                 "picture_link": (anime.get("main_picture") or {}).get("medium"),
             })
     except (groq.APIStatusError, openai.APIStatusError) as exc:

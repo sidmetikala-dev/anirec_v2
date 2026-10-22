@@ -6,6 +6,12 @@ interface RecommendationResponse {
     anime_id: number
     title: string
     picture_link: string | null
+    explanation: string
+    synopsis: string
+    genres: string[]
+    mean_rating: number
+    num_episodes: number
+    num_list_users: number
   }[]
   error?: string
 }
@@ -55,6 +61,12 @@ function FormCard({ onResultImages }: FormCardProps) {
             url: recommendation.picture_link as string,
             title: recommendation.title,
             anime_id: recommendation.anime_id,
+            agent_explanation: recommendation.explanation,
+            anime_synopsis: recommendation.synopsis,
+            anime_genres: recommendation.genres,
+            anime_mean_rating: recommendation.mean_rating,
+            anime_num_episodes: recommendation.num_episodes,
+            members: recommendation.num_list_users,
           }))
       )
     } catch (error) {

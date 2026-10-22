@@ -243,8 +243,14 @@ h1:hover {
 .modal-info {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  /* justify-content: center; */
+  align-items: stretch;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: clamp(24px, 3vw, 48px);
+  gap: 28px;
+  overflow-y: auto;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: left;
   height: 100%;
   width: 100%;
 }
@@ -253,8 +259,13 @@ h1:hover {
   font-size: 2rem;
 }
 
-.modal-content h2 { 
-  margin: 0 2rem 1rem 0; 
+.modal-content h2 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #aaa2b5;
 }
 
 .modal-close-btn { 
@@ -266,7 +277,7 @@ h1:hover {
 }
 
 .modal-poster-wrapper {
-  flex: 0 0 auto; 
+  flex: 0 0 30%;
   height: 100%;
   overflow: hidden;
 }
@@ -282,3 +293,73 @@ h1:hover {
 .modal-poster:hover {
   transform: scale(1.02);
 }
+
+/* Title */
+.modal-anime-title {
+	outline: none;
+  font-size: clamp(28px, 3vw, 44px);
+  font-weight: 650;
+	text-decoration: none;
+	position: relative;
+	line-height: 1.15;
+	color: #f8f3fa;
+	display: inline-block;
+  padding: 0 40px 0 0;
+}
+
+.modal-text {
+  display: grid;
+  gap: 28px;
+}
+
+.modal-section p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #cec7d2;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.modal-anime-details, .modal-anime-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detail-pill, .genre-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.detail-pill span { font-size: 12px; opacity: 0.8; }
+.detail-episodes { background: #443125; color: #ffc897; }
+.detail-rating { background: #24394c; color: #a8d6ff; }
+.detail-members { background: #382c4c; color: #d6b6ff; }
+.genre-pill { background: #442b39; color: #ffb6d5; }
+.genre-pill:nth-child(3n + 2) { background: #382c4c; color: #d6b6ff; }
+.genre-pill:nth-child(3n) { background: #203e34; color: #9ce2c4; }
+
+.modal-reason {
+  padding: 20px 24px;
+  border: 1px solid #594032;
+  border-radius: 16px;
+  background: #feb47b08;
+}
+.modal-reason h2 { color: #feb47b; }
+.modal-anime-title:focus-visible { outline: 2px solid #feb47b; outline-offset: 4px; }
+
+@media (max-width: 700px) {
+  .modal-body { flex-direction: column; overflow-y: auto; }
+  .modal-poster-wrapper { flex: none; height: 220px; }
+  .modal-poster { object-position: center 25%; }
+  .modal-info { height: auto; overflow-y: visible; gap: 24px; padding: 24px; }
+  .modal-section p { font-size: 15px; }
+}
+
